@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Approvisionnement Validé</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #059669;">Approvisionnement Validé</h2>
+        
+        <p>Bonjour Admin,</p>
+        
+        <p>L'agent <strong>{{ agent.nom }} {{ agent.prenom }}</strong> a confirmé la bonne réception des fonds.</p>
+        
+        <div style="background-color: #f0fdf4; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #059669;">
+            <p><strong>Opérateur :</strong> {{ request.operator.name }}</p>
+            <p><strong>Compte :</strong> {{ request.compte|upper }}</p>
+            <p><strong>Montant :</strong> {{ request.montant|number_format(0, ',', ' ') }} FCFA</p>
+            <p><strong>Date de Validation :</strong> {{ request.validatedAt|date('d/m/Y H:i') }}</p>
+        </div>
+        
+        <p>Le solde du compte et le journal comptable ont été mis à jour automatiquement.</p>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="https://manos.app/mobile-money/operators/{{ request.operator.id }}" style="background-color: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Voir le Compte</a>
+        </div>
+    </div>
+</body>
+</html>

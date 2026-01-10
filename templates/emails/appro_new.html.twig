@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nouvel Approvisionnement</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #4f46e5;">Nouvel Approvisionnement Reçu</h2>
+        
+        <p>Bonjour {{ agent.prenom }},</p>
+        
+        <p>Une demande d'approvisionnement a été initiée sur votre compte par l'administrateur.</p>
+        
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <p><strong>Opérateur :</strong> {{ operator.name }}</p>
+            <p><strong>Compte :</strong> {{ request.compte|upper }}</p>
+            <p><strong>Montant :</strong> <span style="font-size: 1.2em; font-weight: bold; color: #059669;">{{ request.montant|number_format(0, ',', ' ') }} FCFA</span></p>
+            {% if request.notes %}
+                <p><strong>Note :</strong> {{ request.notes }}</p>
+            {% endif %}
+        </div>
+        
+        <p>Merci de vous connecter à votre tableau de bord pour <strong>valider la réception</strong> une fois les fonds constatés.</p>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="https://manos.app/dashboard" style="background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Accéder au Dashboard</a>
+        </div>
+        
+        <p style="margin-top: 30px; font-size: 0.8em; color: #666;">Ceci est un message automatique, merci de ne pas répondre.</p>
+    </div>
+</body>
+</html>
