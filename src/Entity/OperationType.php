@@ -13,6 +13,26 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\Table(name: 'operation_types')]
 class OperationType
 {
+    public const CATEGORY_MOBILE_MONEY = 'Opérations Mobile Money';
+    public const CATEGORY_CREDIT_DATA = 'Crédit & Forfaits';
+
+    public const VARIANT_DAY = 'Jour';
+    public const VARIANT_WEEK = 'Semaine';
+    public const VARIANT_MONTH = 'Mois';
+    public const VARIANT_FREE_AMOUNT = 'Montant Libre';
+
+    public const CATEGORIES = [
+        self::CATEGORY_MOBILE_MONEY,
+        self::CATEGORY_CREDIT_DATA,
+    ];
+
+    public const VARIANTS = [
+        self::VARIANT_DAY,
+        self::VARIANT_WEEK,
+        self::VARIANT_MONTH,
+        self::VARIANT_FREE_AMOUNT,
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
