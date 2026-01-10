@@ -34,6 +34,11 @@ class OperationTypeController extends AbstractController
         $type->setName($data['name']);
         $type->setCode($data['code'] ?? null);
         $type->setDescription($data['description'] ?? null);
+        $type->setCategory($data['category'] ?? null);
+        $type->setVariant($data['variant'] ?? null);
+        if (isset($data['method'])) {
+            $type->setMethod($data['method']);
+        }
 
         $em->persist($type);
         $em->flush();
@@ -58,6 +63,9 @@ class OperationTypeController extends AbstractController
         if (isset($data['name'])) $type->setName($data['name']);
         if (isset($data['code'])) $type->setCode($data['code']);
         if (isset($data['description'])) $type->setDescription($data['description']);
+        if (isset($data['category'])) $type->setCategory($data['category']);
+        if (isset($data['variant'])) $type->setVariant($data['variant']);
+        if (isset($data['method'])) $type->setMethod($data['method']);
 
         $em->flush();
 
