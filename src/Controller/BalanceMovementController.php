@@ -47,6 +47,30 @@ class BalanceMovementController extends AbstractController
                ->setParameter('type', $type);
         }
 
+        if ($accountId = $request->query->get('account_id')) {
+            $qb->andWhere('a.id = :accountId')
+               ->setParameter('accountId', $accountId);
+        }
+
+        if ($startDate = $request->query->get('start_date')) {
+            // client sends 'YYYY-MM-DD'
+             try {
+                $start = new \DateTime($startDate);
+                $start->setTime(0, 0, 0);
+                $qb->andWhere('m.createdAt >= :start')
+                   ->setParameter('start', $start);
+            } catch (\Exception $e) {}
+        }
+
+        if ($endDate = $request->query->get('end_date')) {
+             try {
+                $end = new \DateTime($endDate);
+                $end->setTime(23, 59, 59);
+                $qb->andWhere('m.createdAt <= :end')
+                   ->setParameter('end', $end);
+            } catch (\Exception $e) {}
+        }
+
         $movements = $qb->setMaxResults(100)->getQuery()->getResult();
 
         $json = $this->serializer->serialize($movements, 'json', ['groups' => 'balance_movement:read']);
