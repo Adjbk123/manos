@@ -33,6 +33,9 @@ class OperationType
         self::VARIANT_FREE_AMOUNT,
     ];
 
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
     #[Groups(['operation_type:read', 'ussd_code:read', 'operator:read', 'transaction:read'])]
     private ?int $id = null;
 

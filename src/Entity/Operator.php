@@ -13,6 +13,9 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\Table(name: 'operators')]
 class Operator
 {
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
     #[Groups(['operator:read', 'operation_type:read', 'ussd_code:read', 'appro_request:read', 'transaction:read'])]
     private ?int $id = null;
 
