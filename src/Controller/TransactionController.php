@@ -94,17 +94,21 @@ class TransactionController extends AbstractController
         $data = json_decode($request->getContent(), true);
         
         $oldStatus = $transaction->getStatus();
-        if (isset($data['status'])) {
-            $newStatus = $data['status'];
-            $transaction->setStatus($newStatus);
+        try {
+            if (isset($data['status'])) {
+                $newStatus = $data['status'];
+                $transaction->setStatus($newStatus);
 
-            // If transaction just became successful, reconcile balances
-            if ($newStatus === Transaction::STATUS_SUCCESS && $oldStatus !== Transaction::STATUS_SUCCESS) {
-                $balanceService->triggerTransactionMovements($transaction);
+                // If transaction just became successful, reconcile balances
+                if ($newStatus === Transaction::STATUS_SUCCESS && $oldStatus !== Transaction::STATUS_SUCCESS) {
+                    $balanceService->triggerTransactionMovements($transaction);
+                }
             }
-        }
 
-        $em->flush();
+            $em->flush();
+        } catch (\RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
 
         return new JsonResponse(
             $serializer->serialize($transaction, 'json', [

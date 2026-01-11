@@ -59,23 +59,38 @@ class BalanceService
         $isMM = ($category === OperationType::CATEGORY_MOBILE_MONEY) || (stripos($category, 'Mobile Money') !== false);
         
         if ($isMM) {
-            if (!$virtualUV) return; // Silent skip if account missing
+            if (!$virtualUV) {
+                throw new \RuntimeException("Compte virtuel UV manquant pour cet opérateur.");
+            }
             
             $v = strtolower($variant ?? '');
             if (stripos($v, 'retrait') !== false) {
-                // Retrait: -Virtuel, -Physique
-                $this->adjust($virtualUV, "-$amount", $user, $t);
+                // RETRAIT pour le client = AGENT DONNE DU CASH / REÇOIT DE L'UV
+                // Check Physical (Caisse)
+                if (bccomp($physicalAccount->getBalance(), $amount, 2) === -1) {
+                    throw new \RuntimeException("Solde PHYSIQUE (Caisse) insuffisant pour ce retrait.");
+                }
+                $this->adjust($virtualUV, $amount, $user, $t);
                 $this->adjust($physicalAccount, "-$amount", $user, $t);
             } else if (stripos($v, 'dépôt') !== false) {
-                // Dépôt: +Virtuel, +Physique
-                $this->adjust($virtualUV, $amount, $user, $t);
+                // DÉPÔT pour le client = AGENT ENVOIE DE L'UV / REÇOIT DU CASH
+                // Check Virtual (UV)
+                if (bccomp($virtualUV->getBalance(), $amount, 2) === -1) {
+                    throw new \RuntimeException("Solde VIRTUEL (UV) insuffisant pour ce dépôt.");
+                }
+                $this->adjust($virtualUV, "-$amount", $user, $t);
                 $this->adjust($physicalAccount, $amount, $user, $t);
             }
         } else if (stripos($category, 'Crédit') !== false || stripos($category, 'Forfait') !== false) {
-            // Vente: -Virtuel, +Physique
-            // Priority to virtual_credit if it exists, otherwise use standard virtual
+            // VENTE CRÉDIT/DATA = AGENT DÉDUIT STOCK / REÇOIT DU CASH
             $targetVirtual = $virtualCredit ?? $virtualUV;
-            if (!$targetVirtual) return;
+            if (!$targetVirtual) {
+                throw new \RuntimeException("Compte de crédit/UV manquant.");
+            }
+
+            if (bccomp($targetVirtual->getBalance(), $amount, 2) === -1) {
+                throw new \RuntimeException("Solde de CRÉDIT insuffisant pour cette vente.");
+            }
 
             $this->adjust($targetVirtual, "-$amount", $user, $t);
             $this->adjust($physicalAccount, $amount, $user, $t);
@@ -92,6 +107,12 @@ class BalanceService
         $before = $account->getBalance();
         $new = bcadd($before, $amount, 2);
         
+        // ULTIMATE PROTECTION: Prevent ANY negative balance
+        if (bccomp($new, '0', 2) === -1) {
+            $accountType = $account->getType() === Account::TYPE_PHYSICAL ? 'PHYSIQUE (Caisse)' : 'VIRTUEL';
+            throw new \RuntimeException("Opération impossible : Solde $accountType insuffisant ($before F).");
+        }
+
         $account->setBalance($new);
 
         $movement = new BalanceMovement();
