@@ -6,6 +6,7 @@ use App\Entity\Account;
 use App\Entity\BalanceMovement;
 use App\Entity\Transaction;
 use App\Entity\User;
+use App\Entity\OperationType;
 use App\Repository\AccountRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
