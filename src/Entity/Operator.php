@@ -13,18 +13,15 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\Table(name: 'operators')]
 class Operator
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    #[Groups(['operator:read', 'operation_type:read', 'ussd_code:read', 'appro_request:read'])]
+    #[Groups(['operator:read', 'operation_type:read', 'ussd_code:read', 'appro_request:read', 'transaction:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['operator:read', 'operator:write', 'operation_type:read', 'ussd_code:read', 'appro_request:read'])]
+    #[Groups(['operator:read', 'operator:write', 'operation_type:read', 'ussd_code:read', 'appro_request:read', 'transaction:read'])]
     private ?string $name = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['operator:read', 'operator:write'])]
+    #[Groups(['operator:read', 'operator:write', 'transaction:read'])]
     private ?string $logo = null;
 
     #[ORM\Column]

@@ -54,19 +54,23 @@ class BalanceService
         }
 
         // 2. Apply rules
-        if ($category === 'Mobile Money') {
+        // Match category using constant from OperationType or loose match
+        $isMM = ($category === OperationType::CATEGORY_MOBILE_MONEY) || (stripos($category, 'Mobile Money') !== false);
+        
+        if ($isMM) {
             if (!$virtualUV) return; // Silent skip if account missing
             
-            if (stripos($variant, 'retrait') !== false) {
+            $v = strtolower($variant ?? '');
+            if (stripos($v, 'retrait') !== false) {
                 // Retrait: -Virtuel, -Physique
                 $this->adjust($virtualUV, "-$amount", $user, $t);
                 $this->adjust($physicalAccount, "-$amount", $user, $t);
-            } else if (stripos($variant, 'dépôt') !== false) {
+            } else if (stripos($v, 'dépôt') !== false) {
                 // Dépôt: +Virtuel, +Physique
                 $this->adjust($virtualUV, $amount, $user, $t);
                 $this->adjust($physicalAccount, $amount, $user, $t);
             }
-        } else if ($category === 'Vente Crédit' || $category === 'Vente Forfait') {
+        } else if (stripos($category, 'Crédit') !== false || stripos($category, 'Forfait') !== false) {
             // Vente: -Virtuel, +Physique
             // Priority to virtual_credit if it exists, otherwise use standard virtual
             $targetVirtual = $virtualCredit ?? $virtualUV;

@@ -33,18 +33,16 @@ class OperationType
         self::VARIANT_FREE_AMOUNT,
     ];
 
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    #[Groups(['operation_type:read', 'ussd_code:read', 'operator:read'])]
+    #[Groups(['operation_type:read', 'ussd_code:read', 'operator:read', 'transaction:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'operationTypes')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['transaction:read'])]
     private ?Operator $operator = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['operation_type:read', 'operation_type:write', 'ussd_code:read', 'operator:read'])]
+    #[Groups(['operation_type:read', 'operation_type:write', 'ussd_code:read', 'operator:read', 'transaction:read'])]
     private ?string $name = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -56,11 +54,11 @@ class OperationType
     private ?string $description = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read'])]
+    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read', 'transaction:read'])]
     private ?string $category = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read'])]
+    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read', 'transaction:read'])]
     private ?string $variant = null;
 
     #[ORM\Column(length: 50)]
