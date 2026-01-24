@@ -3,7 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\OperationType;
-use App\Entity\Operator;
+
 use App\Repository\OperationTypeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,6 +16,18 @@ use Symfony\Component\Serializer\SerializerInterface;
 #[Route('/api/operation-types')]
 class OperationTypeController extends AbstractController
 {
+    #[Route('', name: 'api_operation_types_index', methods: ['GET'])]
+    public function index(OperationTypeRepository $repository, SerializerInterface $serializer): JsonResponse
+    {
+        $types = $repository->findAll();
+        return new JsonResponse(
+            $serializer->serialize($types, 'json', ['groups' => 'operation_type:read']),
+            Response::HTTP_OK,
+            [],
+            true
+        );
+    }
+
     #[Route('', name: 'api_operation_types_create', methods: ['POST'])]
     public function create(
         Request $request, 
@@ -24,21 +36,10 @@ class OperationTypeController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         
-        $operator = $em->getRepository(Operator::class)->find($data['operator_id'] ?? 0);
-        if (!$operator) {
-            return $this->json(['error' => 'Operator not found'], Response::HTTP_NOT_FOUND);
-        }
-
         $type = new OperationType();
-        $type->setOperator($operator);
         $type->setName($data['name']);
-        $type->setCode($data['code'] ?? null);
         $type->setDescription($data['description'] ?? null);
         $type->setCategory($data['category'] ?? null);
-        $type->setVariant($data['variant'] ?? null);
-        if (isset($data['method'])) {
-            $type->setMethod($data['method']);
-        }
 
         $em->persist($type);
         $em->flush();
@@ -61,11 +62,8 @@ class OperationTypeController extends AbstractController
         $data = json_decode($request->getContent(), true);
         
         if (isset($data['name'])) $type->setName($data['name']);
-        if (isset($data['code'])) $type->setCode($data['code']);
         if (isset($data['description'])) $type->setDescription($data['description']);
         if (isset($data['category'])) $type->setCategory($data['category']);
-        if (isset($data['variant'])) $type->setVariant($data['variant']);
-        if (isset($data['method'])) $type->setMethod($data['method']);
 
         $em->flush();
 

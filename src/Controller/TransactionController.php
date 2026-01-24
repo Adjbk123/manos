@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Transaction;
 use App\Entity\Customer;
 use App\Entity\OperationType;
+use App\Entity\Operator;
 use App\Repository\TransactionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -13,6 +14,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\SerializerInterface;
+use App\Service\TransactionService;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[Route('/api/transactions')]
 class TransactionController extends AbstractController
@@ -40,38 +43,19 @@ class TransactionController extends AbstractController
     #[Route('', name: 'api_transactions_create', methods: ['POST'])]
     public function create(
         Request $request,
-        EntityManagerInterface $em,
-        SerializerInterface $serializer
+        SerializerInterface $serializer,
+        TransactionService $transactionService
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         $user = $this->getUser();
 
-        $opType = $em->getRepository(OperationType::class)->find($data['operation_type_id'] ?? 0);
-        if (!$opType) {
-            return $this->json(['error' => 'Operation Type not found'], Response::HTTP_NOT_FOUND);
+        try {
+            $transaction = $transactionService->createTransaction($user, $data);
+        } catch (NotFoundHttpException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+        } catch (\RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
-
-        $customer = null;
-        if (!empty($data['customer_phone'])) {
-            $customer = $em->getRepository(Customer::class)->findOneBy(['phone' => $data['customer_phone']]);
-            if (!$customer) {
-                $customer = new Customer();
-                $customer->setPhone($data['customer_phone']);
-                $customer->setNom($data['customer_nom'] ?? null);
-                $em->persist($customer);
-            }
-        }
-
-        $transaction = new Transaction();
-        $transaction->setUser($user);
-        $transaction->setCustomer($customer);
-        $transaction->setOperationType($opType);
-        $transaction->setAmount($data['amount']);
-        $transaction->setNotes($data['notes'] ?? null);
-        $transaction->setStatus(Transaction::STATUS_PENDING);
-
-        $em->persist($transaction);
-        $em->flush();
 
         return new JsonResponse(
             $serializer->serialize($transaction, 'json', [
@@ -92,7 +76,7 @@ class TransactionController extends AbstractController
         \App\Service\BalanceService $balanceService
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
-        
+
         $oldStatus = $transaction->getStatus();
         try {
             if (isset($data['status'])) {
@@ -102,6 +86,11 @@ class TransactionController extends AbstractController
                 // If transaction just became successful, reconcile balances
                 if ($newStatus === Transaction::STATUS_SUCCESS && $oldStatus !== Transaction::STATUS_SUCCESS) {
                     $balanceService->triggerTransactionMovements($transaction);
+                }
+
+                // If transaction is cancelled, reverse balance movements
+                if ($newStatus === Transaction::STATUS_CANCELLED && $oldStatus === Transaction::STATUS_SUCCESS) {
+                    $balanceService->triggerTransactionReversal($transaction);
                 }
             }
 

@@ -31,17 +31,12 @@ class Operator
     #[Groups(['operator:read', 'operator:write'])]
     private ?bool $status = true;
 
-    #[ORM\OneToMany(mappedBy: 'operator', targetEntity: OperationType::class, orphanRemoval: true)]
-    #[Groups(['operator:read'])]
-    private Collection $operationTypes;
-
     #[ORM\OneToMany(mappedBy: 'operator', targetEntity: Account::class, orphanRemoval: true)]
     #[Groups(['operator:read'])]
     private Collection $balances;
 
     public function __construct()
     {
-        $this->operationTypes = new ArrayCollection();
         $this->balances = new ArrayCollection();
         $this->status = true;
     }
@@ -83,36 +78,6 @@ class Operator
     public function setStatus(bool $status): static
     {
         $this->status = $status;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, OperationType>
-     */
-    public function getOperationTypes(): Collection
-    {
-        return $this->operationTypes;
-    }
-
-    public function addOperationType(OperationType $operationType): static
-    {
-        if (!$this->operationTypes->contains($operationType)) {
-            $this->operationTypes->add($operationType);
-            $operationType->setOperator($this);
-        }
-
-        return $this;
-    }
-
-    public function removeOperationType(OperationType $operationType): static
-    {
-        if ($this->operationTypes->removeElement($operationType)) {
-            // set the owning side to null (unless already changed)
-            if ($operationType->getOperator() === $this) {
-                $operationType->setOperator(null);
-            }
-        }
 
         return $this;
     }

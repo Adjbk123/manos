@@ -15,6 +15,7 @@ class BalanceMovement
     const TYPE_TRANSACTION = 'transaction';
     const TYPE_APPRO = 'appro';
     const TYPE_ADJUST = 'adjust';
+    const TYPE_LOAN = 'loan';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -34,7 +35,7 @@ class BalanceMovement
 
     #[ORM\Column(length: 20)]
     #[Groups(['balance_movement:read'])]
-    private ?string $type = null; // transaction, appro, adjust
+    private ?string $type = null; // transaction, appro, adjust, loan
 
     #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 2)]
     #[Groups(['balance_movement:read'])]
@@ -56,6 +57,11 @@ class BalanceMovement
     #[ORM\JoinColumn(nullable: true)]
     #[Groups(['balance_movement:read'])]
     private ?Transaction $transaction = null;
+
+    #[ORM\ManyToOne(targetEntity: Loan::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['balance_movement:read'])]
+    private ?Loan $loan = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['balance_movement:read'])]
@@ -156,6 +162,17 @@ class BalanceMovement
     public function setTransaction(?Transaction $transaction): static
     {
         $this->transaction = $transaction;
+        return $this;
+    }
+
+    public function getLoan(): ?Loan
+    {
+        return $this->loan;
+    }
+
+    public function setLoan(?Loan $loan): static
+    {
+        $this->loan = $loan;
         return $this;
     }
 

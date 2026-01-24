@@ -43,6 +43,17 @@ class CustomerController extends AbstractController
         );
     }
 
+    #[Route('/{id}', name: 'api_customers_show', methods: ['GET'])]
+    public function show(Customer $customer, SerializerInterface $serializer): JsonResponse
+    {
+        return new JsonResponse(
+            $serializer->serialize($customer, 'json', ['groups' => 'customer:read']),
+            Response::HTTP_OK,
+            [],
+            true
+        );
+    }
+
     #[Route('', name: 'api_customers_create', methods: ['POST'])]
     public function create(
         Request $request,

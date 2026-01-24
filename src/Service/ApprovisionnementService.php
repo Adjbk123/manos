@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Account;
 use App\Entity\ApproRequest;
+use App\Entity\BalanceMovement;
 use App\Entity\Operator;
 use App\Entity\User;
 use App\Repository\ApproRequestRepository;
@@ -26,21 +27,25 @@ class ApprovisionnementService
 
     public function createRequest(User $admin, array $data): ApproRequest
     {
-        $operator = $this->em->getRepository(Operator::class)->find($data['operator_id'] ?? 0);
-        if (!$operator) {
-            throw new BadRequestHttpException('Opérateur invalide.');
+        $operator = null;
+        if (isset($data['operator_id'])) {
+            $operator = $this->em->getRepository(Operator::class)->find($data['operator_id']);
+        }
+
+        if (!$operator && ($data['compte'] ?? '') !== Account::TYPE_PHYSICAL) {
+            throw new BadRequestHttpException('Opérateur invalide (requis pour virtuel/crédit).');
         }
 
         $agent = $this->em->getRepository(User::class)->find($data['agent_id'] ?? 0);
         if (!$agent) {
-             throw new BadRequestHttpException('Agent invalide.');
+            throw new BadRequestHttpException('Agent invalide.');
         }
 
         if (!isset($data['montant']) || !is_numeric($data['montant']) || $data['montant'] <= 0) {
             throw new BadRequestHttpException('Le montant doit être un nombre positif.');
         }
 
-        if (!in_array($data['compte'], ['physique', 'virtuel'])) {
+        if (!in_array($data['compte'], [Account::TYPE_PHYSICAL, Account::TYPE_VIRTUAL, Account::TYPE_VIRTUAL_CREDIT])) {
             throw new BadRequestHttpException('Type de compte invalide.');
         }
 
@@ -55,7 +60,7 @@ class ApprovisionnementService
 
         $this->em->persist($request);
         $this->em->flush();
-        
+
         $this->mailerService->sendApproNotification($request);
 
         return $request;
@@ -73,7 +78,7 @@ class ApprovisionnementService
         }
 
         if ($validator->getId() !== $request->getAgent()->getId()) {
-             throw new AccessDeniedHttpException('Seul l\'agent concerné peut valider cette réception.');
+            throw new AccessDeniedHttpException('Seul l\'agent concerné peut valider cette réception.');
         }
 
         $request->setStatus(ApproRequest::STATUS_APPROVED);
@@ -84,17 +89,17 @@ class ApprovisionnementService
         $amount = $request->getMontant();
         $accountRepo = $this->em->getRepository(Account::class);
 
-        if ($request->getCompte() === 'virtuel') {
-            // Appro UV: +Virtuel Operator, -Physique Global
-            $virtAccount = $accountRepo->findOneBy(['operator' => $request->getOperator(), 'type' => Account::TYPE_VIRTUAL]);
-            $physAccount = $accountRepo->findOneBy(['operator' => null, 'type' => Account::TYPE_PHYSICAL]);
-            
-            if ($virtAccount) $this->balanceService->adjust($virtAccount, $amount, $validator);
-            if ($physAccount) $this->balanceService->adjust($physAccount, "-$amount", $validator);
+        if ($request->getCompte() !== Account::TYPE_PHYSICAL) {
+            // Appro UV/Credit: +Operator Account ONLY (Source externe/Manager)
+            $operatorAccount = $accountRepo->findOneBy(['operator' => $request->getOperator(), 'type' => $request->getCompte()]);
+
+            if ($operatorAccount)
+                $this->balanceService->adjust($operatorAccount, $amount, $validator, null, "Validation de la demande d'appro #{$request->getId()}", BalanceMovement::TYPE_APPRO);
         } else {
             // Appro Cash: +Physique Global
             $physAccount = $accountRepo->findOneBy(['operator' => null, 'type' => Account::TYPE_PHYSICAL]);
-            if ($physAccount) $this->balanceService->adjust($physAccount, $amount, $validator);
+            if ($physAccount)
+                $this->balanceService->adjust($physAccount, $amount, $validator, null, "Validation de la demande d'appro #{$request->getId()}", BalanceMovement::TYPE_APPRO);
         }
 
         $this->em->flush();
@@ -107,9 +112,12 @@ class ApprovisionnementService
     public function rejectRequest(User $validator, int $requestId): ApproRequest
     {
         $request = $this->em->getRepository(ApproRequest::class)->find($requestId);
-        if (!$request) throw new BadRequestHttpException('Demande non trouvée.');
-        if ($request->getStatus() !== ApproRequest::STATUS_PENDING) throw new BadRequestHttpException('Plus en attente.');
-        if ($validator->getId() !== $request->getAgent()->getId()) throw new AccessDeniedHttpException('Non autorisé.');
+        if (!$request)
+            throw new BadRequestHttpException('Demande non trouvée.');
+        if ($request->getStatus() !== ApproRequest::STATUS_PENDING)
+            throw new BadRequestHttpException('Plus en attente.');
+        if ($validator->getId() !== $request->getAgent()->getId())
+            throw new AccessDeniedHttpException('Non autorisé.');
 
         $request->setStatus(ApproRequest::STATUS_REJECTED);
         $request->setValidatedBy($validator);

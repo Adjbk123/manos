@@ -15,6 +15,7 @@ class Transaction
     const STATUS_PENDING = 'pending';
     const STATUS_SUCCESS = 'success';
     const STATUS_FAILED = 'failed';
+    const STATUS_CANCELLED = 'cancelled';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -31,6 +32,11 @@ class Transaction
     #[ORM\JoinColumn(nullable: true)]
     #[Groups(['transaction:read'])]
     private ?Customer $customer = null;
+
+    #[ORM\ManyToOne(targetEntity: Operator::class)]
+    #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['transaction:read'])]
+    private ?Operator $operator = null;
 
     #[ORM\ManyToOne(targetEntity: OperationType::class)]
     #[ORM\JoinColumn(nullable: false)]
@@ -49,6 +55,11 @@ class Transaction
     #[ORM\JoinColumn(nullable: true)]
     #[Groups(['transaction:read'])]
     private ?BalanceMovement $linkedBalanceMovement = null;
+
+    #[ORM\ManyToOne(targetEntity: SessionService::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['transaction:read'])]
+    private ?SessionService $sessionService = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups(['transaction:read'])]
@@ -95,6 +106,18 @@ class Transaction
     public function setCustomer(?Customer $customer): static
     {
         $this->customer = $customer;
+
+        return $this;
+    }
+
+    public function getOperator(): ?Operator
+    {
+        return $this->operator;
+    }
+
+    public function setOperator(?Operator $operator): static
+    {
+        $this->operator = $operator;
 
         return $this;
     }
@@ -167,6 +190,18 @@ class Transaction
     public function setNotes(?string $notes): static
     {
         $this->notes = $notes;
+
+        return $this;
+    }
+
+    public function getSessionService(): ?SessionService
+    {
+        return $this->sessionService;
+    }
+
+    public function setSessionService(?SessionService $sessionService): static
+    {
+        $this->sessionService = $sessionService;
 
         return $this;
     }

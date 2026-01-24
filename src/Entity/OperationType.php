@@ -13,44 +13,23 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\Table(name: 'operation_types')]
 class OperationType
 {
-    public const CATEGORY_MOBILE_MONEY = 'Opérations Mobile Money';
-    public const CATEGORY_CREDIT_DATA = 'Crédit & Forfaits';
-
-    public const VARIANT_DAY = 'Jour';
-    public const VARIANT_WEEK = 'Semaine';
-    public const VARIANT_MONTH = 'Mois';
-    public const VARIANT_FREE_AMOUNT = 'Montant Libre';
+    public const CATEGORY_MOBILE_MONEY = 'MOBILE_MONEY';
+    public const CATEGORY_CREDIT_DATA = 'CREDIT_FORFAIT';
 
     public const CATEGORIES = [
-        self::CATEGORY_MOBILE_MONEY,
-        self::CATEGORY_CREDIT_DATA,
-    ];
-
-    public const VARIANTS = [
-        self::VARIANT_DAY,
-        self::VARIANT_WEEK,
-        self::VARIANT_MONTH,
-        self::VARIANT_FREE_AMOUNT,
+        self::CATEGORY_MOBILE_MONEY => 'Opérations Mobile Money',
+        self::CATEGORY_CREDIT_DATA => 'Crédit & Forfaits',
     ];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['operation_type:read', 'ussd_code:read', 'operator:read', 'transaction:read'])]
+    #[Groups(['operation_type:read', 'operator:read', 'transaction:read'])]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'operationTypes')]
-    #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['transaction:read'])]
-    private ?Operator $operator = null;
-
     #[ORM\Column(length: 255)]
-    #[Groups(['operation_type:read', 'operation_type:write', 'ussd_code:read', 'operator:read', 'transaction:read'])]
+    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read', 'transaction:read'])]
     private ?string $name = null;
-
-    #[ORM\Column(length: 50, nullable: true)]
-    #[Groups(['operation_type:read', 'operation_type:write'])]
-    private ?string $code = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['operation_type:read', 'operation_type:write'])]
@@ -59,18 +38,6 @@ class OperationType
     #[ORM\Column(length: 100, nullable: true)]
     #[Groups(['operation_type:read', 'operation_type:write', 'operator:read', 'transaction:read'])]
     private ?string $category = null;
-
-    #[ORM\Column(length: 100, nullable: true)]
-    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read', 'transaction:read'])]
-    private ?string $variant = null;
-
-    #[ORM\Column(length: 50)]
-    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read'])]
-    private ?string $method = 'USSD';
-
-    #[ORM\OneToOne(mappedBy: 'operationType', targetEntity: UssdCode::class, cascade: ['persist', 'remove'])]
-    #[Groups(['operation_type:read', 'operator:read'])]
-    private ?UssdCode $ussdCode = null;
 
     public function __construct()
     {
@@ -81,18 +48,6 @@ class OperationType
         return $this->id;
     }
 
-    public function getOperator(): ?Operator
-    {
-        return $this->operator;
-    }
-
-    public function setOperator(?Operator $operator): static
-    {
-        $this->operator = $operator;
-
-        return $this;
-    }
-
     public function getName(): ?string
     {
         return $this->name;
@@ -101,18 +56,6 @@ class OperationType
     public function setName(string $name): static
     {
         $this->name = $name;
-
-        return $this;
-    }
-
-    public function getCode(): ?string
-    {
-        return $this->code;
-    }
-
-    public function setCode(?string $code): static
-    {
-        $this->code = $code;
 
         return $this;
     }
@@ -141,49 +84,11 @@ class OperationType
         return $this;
     }
 
-    public function getVariant(): ?string
+    /**
+     * @Groups({"operation_type:read", "operator:read", "transaction:read"})
+     */
+    public function getCategoryLabel(): string
     {
-        return $this->variant;
-    }
-
-    public function setVariant(?string $variant): static
-    {
-        $this->variant = $variant;
-
-        return $this;
-    }
-
-    public function getMethod(): ?string
-    {
-        return $this->method;
-    }
-
-    public function setMethod(string $method): static
-    {
-        $this->method = $method;
-
-        return $this;
-    }
-
-    public function getUssdCode(): ?UssdCode
-    {
-        return $this->ussdCode;
-    }
-
-    public function setUssdCode(?UssdCode $ussdCode): static
-    {
-        // unset the owning side of the relation if necessary
-        if ($ussdCode === null && $this->ussdCode !== null) {
-            $this->ussdCode->setOperationType(null);
-        }
-
-        // set the owning side of the relation if necessary
-        if ($ussdCode !== null && $ussdCode->getOperationType() !== $this) {
-            $ussdCode->setOperationType($this);
-        }
-
-        $this->ussdCode = ussdCode;
-
-        return $this;
+        return self::CATEGORIES[$this->category] ?? $this->category ?? '';
     }
 }

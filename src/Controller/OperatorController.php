@@ -73,7 +73,6 @@ class OperatorController extends AbstractController
         $json = $serializer->serialize($operator, 'json', [
             'groups' => [
                 'operator:read', 
-                'operation_type:read', 
                 'ussd_code:read', 
                 'operator_balance:read'
             ]
