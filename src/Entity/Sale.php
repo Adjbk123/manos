@@ -16,11 +16,11 @@ class Sale
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['sale:read', 'sale:write', 'stock_client:read'])]
+    #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    #[Groups(['sale:read', 'sale:write', 'stock_client:read'])]
+    #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?\DateTimeInterface $date = null;
 
     #[ORM\ManyToOne(inversedBy: 'sales')]
@@ -28,23 +28,23 @@ class Sale
     private ?StockClient $stockClient = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['sale:read', 'sale:write'])]
+    #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
     private ?string $clientName = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 2)]
-    #[Groups(['sale:read', 'sale:write', 'stock_client:read'])]
+    #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?string $totalAmount = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 2)]
-    #[Groups(['sale:read', 'sale:write', 'stock_client:read'])]
+    #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?string $paidAmount = null;
 
     #[ORM\Column(length: 20)]
-    #[Groups(['sale:read', 'sale:write', 'stock_client:read'])]
+    #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?string $paymentStatus = null; // PAID, PARTIAL, UNPAID
 
     #[ORM\Column(length: 20)]
-    #[Groups(['sale:read', 'sale:write', 'stock_client:read'])]
+    #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?string $paymentMethod = null; // CASH, MOMO
 
     #[ORM\ManyToOne]

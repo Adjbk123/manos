@@ -35,6 +35,7 @@ class StockArrival
     private ?string $totalAmount = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[Groups(['stock_arrival:read'])]
     private ?\DateTimeInterface $createdAt = null;
 
     #[ORM\OneToMany(mappedBy: 'stockArrival', targetEntity: StockBatch::class, cascade: ['persist'], orphanRemoval: true)]

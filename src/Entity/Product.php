@@ -40,6 +40,7 @@ class Product
     private ?int $stockQuantity = 0;
 
     #[ORM\OneToMany(mappedBy: 'product', targetEntity: StockBatch::class, orphanRemoval: true)]
+    #[Groups(['product:read', 'stock:read'])]
     private Collection $stockBatches;
 
     public function __construct()

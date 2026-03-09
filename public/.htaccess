@@ -69,7 +69,7 @@ DirectoryIndex index.php
     </IfModule>
 </IfModule>
 
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Initial-Origin "*"
-</IfModule>
+# <IfModule mod_headers.c>
+#     Header set Access-Control-Allow-Origin "*"
+#     Header set Access-Control-Allow-Initial-Origin "*"
+# </IfModule>

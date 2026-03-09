@@ -14,11 +14,12 @@ class SaleItem
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['sale:read', 'sale:write'])]
+    #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'saleItems')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['product_detail:read'])]
     private ?Sale $sale = null;
 
     #[ORM\ManyToOne]
@@ -27,19 +28,19 @@ class SaleItem
     private ?StockBatch $stockBatch = null;
 
     #[ORM\Column]
-    #[Groups(['sale:read', 'sale:write'])]
+    #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
     private ?int $quantity = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
-    #[Groups(['sale:read', 'sale:write'])]
+    #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
     private ?string $unitSellingPrice = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
-    #[Groups(['sale:read'])]
+    #[Groups(['sale:read', 'product_detail:read'])]
     private ?string $unitPurchasePrice = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2, nullable: true)]
-    #[Groups(['sale:read'])]
+    #[Groups(['sale:read', 'product_detail:read'])]
     private ?string $profit = null;
 
     public function __construct()

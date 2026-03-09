@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { margin: 40px; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; font-size: 11pt; line-height: 1.4; }
+        .header { border-bottom: 2px solid #3e60d5; padding-bottom: 15px; margin-bottom: 30px; }
+        .title { color: #3e60d5; font-size: 20pt; font-weight: bold; margin: 0; }
+        .subtitle { font-size: 9pt; color: #777; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .kpi-container { width: 100%; margin-bottom: 30px; }
+        .kpi-table { width: 100%; border-collapse: collapse; }
+        .kpi-table td { width: 25%; padding: 10px; background: #f8f9fa; border: 5px solid white; }
+        .kpi-label { font-size: 8pt; font-weight: bold; color: #777; text-transform: uppercase; margin-bottom: 3px; }
+        .kpi-value { font-size: 13pt; font-weight: bold; color: #222; }
+        
+        .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .main-table th { background: #3e60d5; color: white; padding: 10px; text-align: left; font-size: 9pt; text-transform: uppercase; }
+        .main-table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 10pt; }
+        .main-table tr:nth-child(even) { background: #fafafa; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        
+        .footer-banner { background: #222; color: white; padding: 20px; margin-top: 20px; text-align: right; }
+        .footer-label { font-size: 9pt; font-weight: bold; opacity: 0.7; text-transform: uppercase; }
+        .footer-value { font-size: 20pt; font-weight: bold; }
+
+        .tag { display: inline-block; padding: 4px 10px; background: #e6f6ed; color: #28a745; border-radius: 5px; font-size: 8pt; font-weight: bold; margin-bottom: 5px; }
+        .logo { width: 160px; height: auto; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <table style="width: 100%;">
+            <tr>
+                <td style="width: 50%;">
+                    {% if logo_path %}
+                        <img src="{{ logo_path }}" class="logo">
+                    {% else %}
+                        <div style="font-weight: bold; font-size: 14pt; color: #3e60d5; margin-bottom: 10px;">MANOS PHONE</div>
+                    {% endif %}
+               
+                    <div class="title">Bon d'Arrivage #{{ arrival.reference }}</div>
+                    <div class="subtitle">Enregistré le {{ arrival.arrivalDate|date('d/m/Y') }}</div>
+                </td>
+                <td class="text-right" style="vertical-align: top; padding-top: 10px;">
+                    <div style="font-weight: bold; font-size: 12pt; color: #222;">BON DE RÉCEPTION</div>
+                    <div style="font-size: 9pt; color: #666; margin-top: 5px;">
+                        Date Document : {{ "now"|date("d/m/Y H:i") }}<br>
+                        Ref. Commande : #{{ arrival.id }}
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="kpi-container">
+        <table class="kpi-table">
+            <tr>
+                <td>
+                    <div class="kpi-label">Investissement</div>
+                    <div class="kpi-value">{{ arrival.totalAmount|number_format(0, '.', ' ') }} F</div>
+                </td>
+                <td>
+                    <div class="kpi-label">Fournisseur</div>
+                    <div class="kpi-value">{{ arrival.supplier|default('Non spécifié') }}</div>
+                </td>
+                <td>
+                    <div class="kpi-label">Date Arrivée</div>
+                    <div class="kpi-value">{{ arrival.arrivalDate|date('d M Y') }}</div>
+                </td>
+                <td>
+                    <div class="kpi-label">Total Articles</div>
+                    <div class="kpi-value">{{ totalItems }} Unités</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th style="width: 35%;">Désignation Produit</th>
+                <th class="text-center">Quantité</th>
+                <th class="text-right">P.A. Unit</th>
+                <th class="text-right">Vente Min</th>
+                <th class="text-right">Vente Cible</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for batch in arrival.stockBatches %}
+            <tr>
+                <td>
+                    <div class="font-bold">{{ batch.product.name }}</div>
+                    <div style="font-size: 8pt; color: #999;">Lot #{{ batch.id }}</div>
+                </td>
+                <td class="text-center font-bold">{{ batch.quantityInitial }}</td>
+                <td class="text-right">{{ batch.purchasePrice|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right" style="color: #f39c12;">{{ batch.minSellingPrice|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right" style="color: #2ecc71;">{{ batch.targetSellingPrice|number_format(0, '.', ' ') }} F</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer-banner">
+        <div class="footer-label">Valeur Totale de l'Arrivage</div>
+        <div class="footer-value">{{ arrival.totalAmount|number_format(0, '.', ' ') }} <span style="font-size: 10pt;">FCFA</span></div>
+    </div>
+
+    <div style="margin-top: 50px; border-top: 1px dashed #ccc; padding-top: 10px; font-size: 8pt; color: #999; text-align: center;">
+        Ce document a été généré numériquement par le système MANOS. Signature autorisée non requise.
+    </div>
+</body>
+</html>

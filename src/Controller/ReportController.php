@@ -2,10 +2,13 @@
 
 namespace App\Controller;
 
+use App\Entity\Account;
+use App\Entity\BalanceMovement;
+use App\Entity\Transaction;
 use App\Repository\AccountRepository;
-use App\Repository\RapportSessionRepository;
-use App\Repository\SessionServiceRepository;
+use App\Repository\BalanceMovementRepository;
 use App\Repository\TransactionRepository;
+use App\Service\PdfService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,52 +21,84 @@ class ReportController extends AbstractController
     public function daily(
         Request $request,
         AccountRepository $accountRepository,
-        RapportSessionRepository $rapportRepository,
-        SessionServiceRepository $sessionRepository
+        BalanceMovementRepository $movementRepository,
+        TransactionRepository $transactionRepository
     ): JsonResponse {
         $dateStr = $request->query->get('date', date('Y-m-d'));
+        $data = $this->getDailyReportData($dateStr, $accountRepository, $movementRepository);
+
+        return $this->json($data);
+    }
+
+    #[Route('/daily/pdf', name: 'api_report_daily_pdf', methods: ['GET'])]
+    public function dailyPdf(
+        Request $request,
+        AccountRepository $accountRepository,
+        BalanceMovementRepository $movementRepository,
+        PdfService $pdfService
+    ): \Symfony\Component\HttpFoundation\Response {
+        $dateStr = $request->query->get('date', date('Y-m-d'));
+        $data = $this->getDailyReportData($dateStr, $accountRepository, $movementRepository);
+
+        $pdfBinary = $pdfService->generatePdf('reports/daily_pdf.html.twig', [
+            'reportData' => $data['reportData'],
+            'date' => $dateStr
+        ]);
+
+        return new \Symfony\Component\HttpFoundation\Response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="rapport_journalier_' . $dateStr . '.pdf"',
+        ]);
+    }
+
+    private function getDailyReportData(
+        string $dateStr,
+        AccountRepository $accountRepository,
+        BalanceMovementRepository $movementRepository
+    ): array {
         $startDate = new \DateTime($dateStr . ' 00:00:00');
         $endDate = new \DateTime($dateStr . ' 23:59:59');
-
-        // Trouver toutes les sessions terminées ce jour
-        $sessions = $sessionRepository->createQueryBuilder('s')
-            ->where('s.startedAt BETWEEN :start AND :end')
-            ->setParameter('start', $startDate)
-            ->setParameter('end', $endDate)
-            ->getQuery()->getResult();
 
         $accounts = $accountRepository->findAll();
         $reportData = [];
 
         foreach ($accounts as $account) {
-            // Pour chaque compte, on agrège les données des sessions du jour
-            $rapports = $rapportRepository->createQueryBuilder('r')
-                ->join('r.session', 's')
-                ->where('r.compte = :account')
-                ->andWhere('s.startedAt BETWEEN :start AND :end')
+            $movements = $movementRepository->createQueryBuilder('m')
+                ->where('m.account = :account')
+                ->andWhere('m.createdAt BETWEEN :start AND :end')
                 ->setParameter('account', $account)
                 ->setParameter('start', $startDate)
                 ->setParameter('end', $endDate)
-                ->orderBy('s.startedAt', 'ASC')
+                ->orderBy('m.createdAt', 'ASC')
                 ->getQuery()->getResult();
-
-            if (empty($rapports)) {
-                continue;
-            }
-
-            $firstRapport = $rapports[0];
-            $lastRapport = end($rapports);
 
             $totalDepots = 0;
             $totalRetraits = 0;
             $totalVentes = 0;
-            $totalEcart = 0;
 
-            foreach ($rapports as $r) {
-                $totalDepots += (float) $r->getTotalDepots();
-                $totalRetraits += (float) $r->getTotalRetraits();
-                $totalVentes += (float) $r->getTotalVentes();
-                $totalEcart += (float) $r->getEcart();
+            foreach ($movements as $m) {
+                $t = $m->getTransaction();
+                if ($t) {
+                    $opName = strtolower($t->getOperationType()->getName());
+                    $catName = $t->getOperationType()->getCategory();
+                    $amount = (float) $m->getAmount();
+
+                    if (stripos($opName, 'dépôt') !== false || stripos($opName, 'depot') !== false) {
+                        $totalDepots += $amount;
+                    } elseif (stripos($opName, 'retrait') !== false) {
+                        $totalRetraits += $amount;
+                    } elseif (stripos($catName, 'Crédit') !== false || stripos($catName, 'Forfait') !== false) {
+                        $totalVentes += $amount;
+                    }
+                }
+            }
+
+            if (empty($movements)) {
+                $opening = (float) $account->getBalance();
+                $closing = (float) $account->getBalance();
+            } else {
+                $opening = (float) $movements[0]->getBeforeBalance();
+                $closing = (float) end($movements)->getAfterBalance();
             }
 
             $reportData[] = [
@@ -71,16 +106,26 @@ class ReportController extends AbstractController
                 'accountName' => $account->getOperator() ? $account->getOperator()->getName() : 'Caisse Physique',
                 'accountType' => $account->getType(),
                 'accountLogo' => $account->getOperator() ? $account->getOperator()->getLogo() : null,
-                'openingBalance' => $firstRapport->getSoldeOuverture(),
-                'closingBalance' => $lastRapport->getSoldeConfirmeFermeture(),
+                'openingBalance' => (string) $opening,
+                'closingBalance' => (string) $closing,
                 'totalDepots' => $totalDepots,
                 'totalRetraits' => $totalRetraits,
                 'totalVentes' => $totalVentes,
-                'ecart' => $totalEcart,
-                'numSessions' => count($rapports)
+                'ecart' => 0,
+                'numMovements' => count($movements)
             ];
         }
 
-        return $this->json($reportData);
+        return [
+            'reportData' => $reportData,
+            'sessions' => [],
+            'billetage' => [
+                'theoretical' => 0,
+                'physical' => 0,
+                'ecart' => 0,
+                'details' => []
+            ],
+            'date' => $dateStr
+        ];
     }
 }

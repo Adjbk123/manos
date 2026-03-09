@@ -8,12 +8,13 @@ use App\Entity\StockBatch;
 use App\Entity\StockArrival;
 use App\Repository\ProductCategoryRepository;
 use App\Repository\ProductRepository;
-use App\Repository\StockBatchRepository;
 use App\Repository\StockArrivalRepository;
+use App\Service\PdfService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -34,7 +35,7 @@ class InventoryController extends AbstractController
 
         $product = new Product();
         $product->setName($data['name']);
-        
+
         if (isset($data['categoryId'])) {
             $category = $categoryRepository->find($data['categoryId']);
             if ($category) {
@@ -54,12 +55,12 @@ class InventoryController extends AbstractController
 
     #[Route('/batches', name: 'api_stock_batches_create', methods: ['POST'])]
     public function addBatch(
-        Request $request, 
-        ProductRepository $productRepository, 
+        Request $request,
+        ProductRepository $productRepository,
         EntityManagerInterface $em
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
-        
+
         $product = $productRepository->find($data['productId']);
         if (!$product) {
             return $this->json(['error' => 'Product not found'], 404);
@@ -96,17 +97,36 @@ class InventoryController extends AbstractController
     #[Route('/arrivals/{id}', name: 'api_stock_arrival_show', methods: ['GET'])]
     public function showArrival(StockArrival $arrival): JsonResponse
     {
-        return $this->json($arrival, 200, [], ['groups' => 'stock_arrival:read']);
+        return $this->json($arrival, 200, [], ['groups' => ['stock_arrival:read', 'stock_batch:read']]);
+    }
+
+    #[Route('/arrivals/{id}/pdf', name: 'api_stock_arrival_pdf', methods: ['GET'])]
+    public function generateArrivalPdf(StockArrival $arrival, PdfService $pdfService): Response
+    {
+        $totalItems = 0;
+        foreach ($arrival->getStockBatches() as $batch) {
+            $totalItems += $batch->getQuantityInitial();
+        }
+
+        $pdfBinary = $pdfService->generatePdf('inventory/arrival_pdf.html.twig', [
+            'arrival' => $arrival,
+            'totalItems' => $totalItems,
+        ]);
+
+        return new Response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="arrivage_' . ($arrival->getReference() ?: $arrival->getId()) . '.pdf"',
+        ]);
     }
 
     #[Route('/arrivals', name: 'api_stock_arrival_create', methods: ['POST'])]
     public function createArrival(
-        Request $request, 
-        ProductRepository $productRepository, 
+        Request $request,
+        ProductRepository $productRepository,
         EntityManagerInterface $em
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
-        
+
         // Validation: reference, items must exist
         if (empty($data['items']) || !is_array($data['items'])) {
             return $this->json(['error' => 'No items provided for arrival'], 400);
@@ -116,7 +136,7 @@ class InventoryController extends AbstractController
         $arrival->setReference($data['reference'] ?? 'ARR-' . date('Ymd-His'));
         $arrival->setSupplier($data['supplier'] ?? null);
         $arrival->setArrivalDate(new \DateTime($data['arrivalDate'] ?? 'now'));
-        
+
         $totalAmount = 0;
 
         foreach ($data['items'] as $item) {
@@ -128,7 +148,7 @@ class InventoryController extends AbstractController
 
             $quantity = (int) $item['quantity'];
             $purchasePrice = (float) $item['purchasePrice'];
-            
+
             $batch = new StockBatch();
             $batch->setProduct($product);
             $batch->setQuantityInitial($quantity);
@@ -138,7 +158,7 @@ class InventoryController extends AbstractController
             $batch->setTargetSellingPrice($item['targetSellingPrice'] ?? $purchasePrice);
             $batch->setSupplier($data['supplier'] ?? null);
             $batch->setPurchaseDate($arrival->getArrivalDate());
-            
+
             $arrival->addStockBatch($batch);
             $em->persist($batch); // Persist batch so it gets an ID and linked (?) - Cascading might handle it but explicit is clearer
 
@@ -150,7 +170,7 @@ class InventoryController extends AbstractController
         }
 
         $arrival->setTotalAmount($totalAmount);
-        
+
         $em->persist($arrival);
         $em->flush();
 

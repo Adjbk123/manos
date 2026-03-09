@@ -78,7 +78,7 @@ class TransactionRepository extends ServiceEntityRepository
             ->getQuery()->getResult();
     }
 
-    public function getSessionStatsByAccount($session, $account)
+    public function getSessionStatsByAccount($session, $account, ?\DateTime $startDate = null, ?\DateTime $endDate = null)
     {
         $qb = $this->createQueryBuilder('t')
             ->select('SUM(t.amount) as volume', 'ot.category', 'ot.name')
@@ -88,19 +88,25 @@ class TransactionRepository extends ServiceEntityRepository
             ->setParameter('session', $session)
             ->setParameter('status', Transaction::STATUS_SUCCESS);
 
+        if ($startDate && $endDate) {
+            $qb->andWhere('t.createdAt BETWEEN :start AND :end')
+                ->setParameter('start', $startDate)
+                ->setParameter('end', $endDate);
+        }
+
         if ($account->getOperator()) {
             $qb->andWhere('t.operator = :operator')
-               ->setParameter('operator', $account->getOperator());
+                ->setParameter('operator', $account->getOperator());
         }
 
         $results = $qb->groupBy('ot.category', 'ot.name')->getQuery()->getResult();
-        
+
         $stats = ['deposits' => 0, 'withdrawals' => 0, 'sales' => 0];
         foreach ($results as $res) {
             $cat = $res['category'];
             $name = strtolower($res['name']);
             $volume = (float) $res['volume'];
-            
+
             if ($cat === 'MOBILE_MONEY') {
                 if (str_contains($name, 'dépôt') || str_contains($name, 'depot')) {
                     $stats['deposits'] += $volume;

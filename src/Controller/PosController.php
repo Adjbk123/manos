@@ -20,6 +20,13 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/pos')]
 class PosController extends AbstractController
 {
+    #[Route('/products', name: 'api_pos_products_list', methods: ['GET'])]
+    public function listProducts(ProductRepository $productRepository): JsonResponse
+    {
+        $products = $productRepository->findBy([], ['name' => 'ASC']);
+        return $this->json($products, 200, [], ['groups' => 'stock:read']);
+    }
+
     #[Route('/clients', name: 'api_pos_clients_list', methods: ['GET'])]
     public function listClients(StockClientRepository $clientRepository): JsonResponse
     {
@@ -30,7 +37,7 @@ class PosController extends AbstractController
     public function getClientDetail(int $id, StockClientRepository $clientRepository): JsonResponse
     {
         $client = $clientRepository->find($id);
-        
+
         if (!$client) {
             return $this->json(['error' => 'Client not found'], 404);
         }
@@ -74,20 +81,20 @@ class PosController extends AbstractController
         try {
             $sale = new Sale();
             $sale->setDate(new \DateTime());
-            
+
             // Link User (assuming passed in body or extracted from token in real app)
             // For now, we might need to get the logged in user. 
             // In a stateless API context, usually $this->getUser() works if JWT is set up.
             // If not available, we might assume ID 1 or passed ID for proto.
-            $user = $this->getUser(); 
+            $user = $this->getUser();
             if (!$user && isset($data['userId'])) {
                 $user = $userRepository->find($data['userId']);
             }
             if (!$user) {
-                 // Fallback or error in production
-                 // throw new \Exception('User required');
+                // Fallback or error in production
+                // throw new \Exception('User required');
             }
-             $sale->setUser($user);
+            $sale->setUser($user);
 
             // Client handling
             if (isset($data['clientId'])) {
@@ -100,20 +107,20 @@ class PosController extends AbstractController
 
             $sale->setPaymentMethod($data['paymentMethod']); // CASH, MOMO
             $sale->setPaymentStatus($data['paymentStatus']); // PAID, PARTIAL, UNPAID
-            
+
             $totalAmount = 0;
 
             foreach ($data['items'] as $itemData) {
                 // Here is the FIFO logic or Batch selection logic
                 // The frontend might send specific batchId if they selected a specific unit
                 // OR they send productId and we determine the batch (FIFO)
-                
+
                 $productId = $itemData['productId'];
                 $quantityRequested = $itemData['quantity'];
                 $unitSellingPrice = $itemData['unitPrice'];
 
                 $product = $productRepository->find($productId);
-                
+
                 // FIFO Strategy: Find batches with stock ordered by date
                 $batches = $batchRepository->createQueryBuilder('b')
                     ->where('b.product = :product')
@@ -126,7 +133,8 @@ class PosController extends AbstractController
                 $quantityToFulfill = $quantityRequested;
 
                 foreach ($batches as $batch) {
-                    if ($quantityToFulfill <= 0) break;
+                    if ($quantityToFulfill <= 0)
+                        break;
 
                     $qtyInBatch = $batch->getQuantityRemaining();
                     $take = min($qtyInBatch, $quantityToFulfill);
@@ -138,7 +146,7 @@ class PosController extends AbstractController
                     $saleItem->setQuantity($take);
                     $saleItem->setUnitSellingPrice($unitSellingPrice); // Provided price
                     $saleItem->setUnitPurchasePrice($batch->getPurchasePrice()); // Snapshot cost
-                    
+
                     // Calculate profit: (Selling - Purchase) * Qty
                     $profit = ($unitSellingPrice - $batch->getPurchasePrice()) * $take;
                     $saleItem->setProfit($profit);
@@ -173,7 +181,8 @@ class PosController extends AbstractController
                 $payment->setAmount($data['paidAmount']);
                 $payment->setDate(new \DateTime());
                 $payment->setPaymentMethod($data['paymentMethod']);
-                if ($user) $payment->setUser($user);
+                if ($user)
+                    $payment->setUser($user);
                 if ($sale->getStockClient()) {
                     $payment->setClient($sale->getStockClient());
                 }
@@ -205,9 +214,21 @@ class PosController extends AbstractController
     #[Route('/sales', name: 'api_pos_sales_list', methods: ['GET'])]
     public function listSales(SaleRepository $saleRepository): JsonResponse
     {
-        // Order by date DESC
         $sales = $saleRepository->findBy([], ['date' => 'DESC']);
         return $this->json($sales, 200, [], ['groups' => 'sale:read']);
+    }
+
+    #[Route('/sales/{id}', name: 'api_pos_sale_detail', methods: ['GET'])]
+    public function getSale(int $id, SaleRepository $saleRepository): JsonResponse
+    {
+        $sale = $saleRepository->find($id);
+        if (!$sale) {
+            return $this->json(['error' => 'Vente introuvable'], 404);
+        }
+        return $this->json($sale, 200, [], [
+            'groups' => ['sale:read', 'stock:read'],
+            'enable_max_depth' => true,
+        ]);
     }
 
     #[Route('/clients/{id}/pay', name: 'api_pos_clients_pay', methods: ['POST'])]
@@ -254,27 +275,28 @@ class PosController extends AbstractController
             ->orderBy('s.date', 'ASC')
             ->getQuery()
             ->getResult();
-            
+
         $remainingPayment = $amount;
-        
+
         foreach ($unpaidSales as $sale) {
-            if ($remainingPayment <= 0) break;
-            
+            if ($remainingPayment <= 0)
+                break;
+
             $total = $sale->getTotalAmount();
             $paid = $sale->getPaidAmount();
             $due = $total - $paid;
-            
+
             $pay = min($remainingPayment, $due);
-            
+
             $sale->setPaidAmount($paid + $pay);
             if ($sale->getPaidAmount() >= $total) {
                 $sale->setPaymentStatus('PAID');
             } else {
                 $sale->setPaymentStatus('PARTIAL');
             }
-            
+
             $em->persist($sale);
-            
+
             // Create a CreditPayment record for this sale
             $subPayment = new CreditPayment();
             $subPayment->setSale($sale);
@@ -282,9 +304,10 @@ class PosController extends AbstractController
             $subPayment->setAmount($pay);
             $subPayment->setDate(new \DateTime());
             $subPayment->setPaymentMethod($paymentMethod);
-            if ($user) $subPayment->setUser($user);
+            if ($user)
+                $subPayment->setUser($user);
             $em->persist($subPayment);
-            
+
             $remainingPayment -= $pay;
         }
 
@@ -293,5 +316,34 @@ class PosController extends AbstractController
         $em->flush();
 
         return $this->json($client, 200, [], ['groups' => 'stock_client:read']);
+    }
+
+    #[Route('/products/{id}', name: 'api_pos_product_detail', methods: ['GET'])]
+    public function getProduct(
+        int $id,
+        ProductRepository $productRepository,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        $product = $productRepository->find($id);
+        if (!$product) {
+            return $this->json(['error' => 'Produit introuvable'], 404);
+        }
+
+        // Fetch sales for this product
+        $saleItems = $em->getRepository(SaleItem::class)->createQueryBuilder('si')
+            ->join('si.stockBatch', 'sb')
+            ->where('sb.product = :product')
+            ->setParameter('product', $product)
+            ->orderBy('si.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        return $this->json([
+            'product' => $product,
+            'saleItems' => $saleItems,
+        ], 200, [], [
+            'groups' => ['product:read', 'stock:read', 'product_detail:read'],
+            'enable_max_depth' => true,
+        ]);
     }
 }

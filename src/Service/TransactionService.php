@@ -24,19 +24,6 @@ class TransactionService
 
     public function createTransaction(User $user, array $data): Transaction
     {
-        // Check if session is required
-        $settings = $this->em->getRepository(\App\Entity\ParametresCaisse::class)->findSettings();
-        $activeSession = $this->em->getRepository(\App\Entity\SessionService::class)->findOneBy([
-            'agent' => $user,
-            'status' => \App\Entity\SessionService::STATUS_OPEN
-        ]);
-
-        if ($settings && $settings->isBloquerOperationsSiNonCloture() && !$activeSession) {
-            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException(
-                'Vous devez ouvrir une session de service avant d\'effectuer des transactions'
-            );
-        }
-
         $opType = $this->em->getRepository(OperationType::class)->find($data['operation_type_id'] ?? 0);
         if (!$opType) {
             throw new NotFoundHttpException('Service introuvable');
@@ -44,7 +31,7 @@ class TransactionService
 
         $operator = $this->em->getRepository(Operator::class)->find($data['operator_id'] ?? 0);
         if (!$operator) {
-             throw new NotFoundHttpException('Opérateur introuvable');
+            throw new NotFoundHttpException('Opérateur introuvable');
         }
 
         $customer = null;
@@ -55,7 +42,7 @@ class TransactionService
                 $customer->setPhone($data['customer_phone']);
                 $this->em->persist($customer);
             }
-            
+
             if (!empty($data['customer_nom'])) {
                 $customer->setNom($data['customer_nom']);
             }
@@ -72,11 +59,6 @@ class TransactionService
         $transaction->setAmount($data['amount']);
         $transaction->setNotes($data['notes'] ?? null);
 
-        // Link active session if exists
-        if ($activeSession) {
-            $transaction->setSessionService($activeSession);
-        }
-        
         $status = $data['status'] ?? Transaction::STATUS_SUCCESS;
         $transaction->setStatus($status);
 
@@ -85,7 +67,7 @@ class TransactionService
         if ($status === Transaction::STATUS_SUCCESS) {
             $this->balanceService->triggerTransactionMovements($transaction);
         }
-        
+
         $this->em->flush();
 
         return $transaction;

@@ -52,6 +52,9 @@ class SessionService
     #[ORM\OneToMany(mappedBy: 'session', targetEntity: RapportSession::class, cascade: ['persist', 'remove'])]
     private Collection $rapports;
 
+    #[ORM\OneToOne(mappedBy: 'session', targetEntity: Billetage::class)]
+    private ?Billetage $billetage = null;
+
     public function __construct()
     {
         $this->startedAt = new \DateTimeImmutable();
@@ -161,6 +164,28 @@ class SessionService
                 $rapport->setSession(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getBilletage(): ?Billetage
+    {
+        return $this->billetage;
+    }
+
+    public function setBilletage(?Billetage $billetage): static
+    {
+        // unset the owning side of the relation if necessary
+        if ($billetage === null && $this->billetage !== null) {
+            $this->billetage->setSession(null);
+        }
+
+        // set the owning side of the relation if necessary
+        if ($billetage !== null && $billetage->getSession() !== $this) {
+            $billetage->setSession($this);
+        }
+
+        $this->billetage = $billetage;
 
         return $this;
     }

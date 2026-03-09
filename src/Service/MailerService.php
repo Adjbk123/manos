@@ -10,14 +10,16 @@ class MailerService
 {
     public function __construct(
         private MailerInterface $mailer
-    ) {}
+    ) {
+    }
 
     /**
      * Envoie un email de réinitialisation de mot de passe.
      */
     public function sendResetPasswordEmail(User $user, string $token): void
     {
-        $resetUrl = "http://manos.local/reset-password?token=" . $token;
+        $frontendUrl = $_ENV['FRONTEND_URL'] ?? 'http://localhost:5173';
+        $resetUrl = rtrim($frontendUrl, '/') . "/reset-password?token=" . $token;
 
         $email = (new TemplatedEmail())
             ->from('hello@manosphone.com')

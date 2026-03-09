@@ -17,7 +17,7 @@ class Billetage
     #[Groups(['session:read'])]
     private ?int $id = null;
 
-    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(inversedBy: 'billetage', cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(nullable: false)]
     private ?SessionService $session = null;
 
@@ -55,7 +55,7 @@ class Billetage
         return $this->session;
     }
 
-    public function setSession(SessionService $session): static
+    public function setSession(?SessionService $session): static
     {
         $this->session = $session;
 

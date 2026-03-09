@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { margin: 40px; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; font-size: 10pt; line-height: 1.4; }
+        .header { border-bottom: 2px solid #3e60d5; padding-bottom: 15px; margin-bottom: 25px; }
+        .title { color: #3e60d5; font-size: 18pt; font-weight: bold; margin: 0; }
+        .subtitle { font-size: 9pt; color: #777; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .main-table th { background: #3e60d5; color: white; padding: 8px 10px; text-align: left; font-size: 8pt; text-transform: uppercase; border-right: 1px solid rgba(255,255,255,0.1); }
+        .main-table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 9pt; border-right: 1px solid #f9f9f9; }
+        .main-table tr:nth-child(even) { background: #fafafa; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        
+        .logo { width: 140px; height: auto; margin-bottom: 10px; }
+        .summary-box { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .summary-title { font-size: 8pt; font-weight: bold; color: #777; margin-bottom: 5px; text-transform: uppercase; }
+        
+        .account-type { font-size: 7pt; padding: 2px 6px; background: #eee; border-radius: 4px; color: #666; font-weight: bold; }
+        
+        .amount-pos { color: #2ecc71; font-weight: bold; }
+        .amount-neg { color: #e74c3c; font-weight: bold; }
+        .amount-neutral { color: #3498db; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <table style="width: 100%;">
+            <tr>
+                <td style="width: 50%;">
+                    {% if logo_path %}
+                        <img src="{{ logo_path }}" class="logo">
+                    {% else %}
+                        <div style="font-weight: bold; font-size: 14pt; color: #3e60d5; margin-bottom: 10px;">MANOS PHONE</div>
+                    {% endif %}
+               
+                    <div class="title">Rapport Journalier</div>
+                    <div class="subtitle">Journée du {{ date|date('d/m/Y') }}</div>
+                </td>
+                <td class="text-right" style="vertical-align: top; padding-top: 10px;">
+                    <div style="font-weight: bold; font-size: 11pt; color: #222;">BILAN ACTIVITÉ</div>
+                    <div style="font-size: 8pt; color: #666; margin-top: 5px;">
+                        Imprimé le : {{ "now"|date("d/m/Y H:i") }}<br>
+                        Généré par : Système Manos
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th style="width: 25%;">Compte / Caisse</th>
+                <th class="text-right">Ouverture</th>
+                <th class="text-right">Dépôts (+)</th>
+                <th class="text-right">Retraits (-)</th>
+                <th class="text-right">Ventes (*)</th>
+                <th class="text-right">Fermeture</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in reportData %}
+            <tr>
+                <td>
+                    <div class="font-bold">{{ item.accountName }}</div>
+                    <span class="account-type">{{ item.accountType }}</span>
+                </td>
+                <td class="text-right font-bold">{{ item.openingBalance|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right amount-pos">+{{ item.totalDepots|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right amount-neg">-{{ item.totalRetraits|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right amount-neutral">{{ item.totalVentes|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right font-bold" style="background: #f0f7ff;">{{ item.closingBalance|number_format(0, '.', ' ') }} F</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 40px;">
+        <table style="width: 100%;">
+            <tr>
+                <td style="width: 60%;">
+                    <div class="summary-box">
+                        <div class="summary-title">Notes & Observations</div>
+                        <div style="height: 60px; font-size: 8pt; color: #999;">
+                            Rapport automatique calculé à partir des mouvements réels de la plateforme. 
+                            Toutes les transactions incluent les dépôts, retraits et ventes de crédit/forfaits.
+                        </div>
+                    </div>
+                </td>
+                <td style="width: 40%; vertical-align: top; padding-left: 20px;">
+                   <div style="border: 1px solid #eee; padding: 15px; border-radius: 10px;">
+                        <div class="summary-title text-center" style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">Validation Admin</div>
+                        <div style="height: 50px;"></div>
+                        <div style="border-top: 1px solid #333; width: 80%; margin: 0 auto; margin-top: 10px;"></div>
+                        <div class="text-center font-bold" style="font-size: 7pt; margin-top: 3px;">Signature & Cachet</div>
+                   </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div style="position: absolute; bottom: 0; width: 100%; border-top: 1px solid #eee; padding-top: 10px; font-size: 7pt; color: #999; text-align: center;">
+        MANOS PHONE — Rapport confidentiel — Page 1/1
+    </div>
+</body>
+</html>

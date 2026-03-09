@@ -56,11 +56,6 @@ class Transaction
     #[Groups(['transaction:read'])]
     private ?BalanceMovement $linkedBalanceMovement = null;
 
-    #[ORM\ManyToOne(targetEntity: SessionService::class)]
-    #[ORM\JoinColumn(nullable: true)]
-    #[Groups(['transaction:read'])]
-    private ?SessionService $sessionService = null;
-
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups(['transaction:read'])]
     private ?\DateTimeInterface $createdAt = null;
@@ -194,15 +189,4 @@ class Transaction
         return $this;
     }
 
-    public function getSessionService(): ?SessionService
-    {
-        return $this->sessionService;
-    }
-
-    public function setSessionService(?SessionService $sessionService): static
-    {
-        $this->sessionService = $sessionService;
-
-        return $this;
-    }
 }

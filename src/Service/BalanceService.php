@@ -83,13 +83,22 @@ class BalanceService
             }
         } else if (stripos($category, 'Crédit') !== false || stripos($category, 'Forfait') !== false) {
             // VENTE CRÉDIT/DATA = AGENT DÉDUIT STOCK / REÇOIT DU CASH
-            $targetVirtual = $virtualCredit ?? $virtualAccount;
-            if (!$targetVirtual) {
-                throw new \RuntimeException("Compte de crédit/VIRTUEL manquant.");
-            }
 
-            if (bccomp($targetVirtual->getBalance(), $amount, 2) === -1) {
-                throw new \RuntimeException("Solde de CRÉDIT insuffisant pour cette vente.");
+            // Try virtual_credit first if it exists, otherwise use virtual
+            $targetVirtual = $virtualCredit;
+
+            // FALLBACK LOGIC: If virtual_credit doesn't exist OR is insufficient, check virtual
+            if (!$targetVirtual || bccomp($targetVirtual->getBalance(), $amount, 2) === -1) {
+                // If virtual_credit was insufficient, we try to use virtual account (UV)
+                if ($virtualAccount && bccomp($virtualAccount->getBalance(), $amount, 2) !== -1) {
+                    $targetVirtual = $virtualAccount;
+                } else {
+                    // Both are insufficient
+                    $msg = $virtualCredit
+                        ? "Solde de CRÉDIT insuffisant ({$virtualCredit->getBalance()} F) et solde VIRTUEL insuffisant."
+                        : "Solde VIRTUEL insuffisant pour cette vente.";
+                    throw new \RuntimeException($msg);
+                }
             }
 
             $this->adjust($targetVirtual, "-$amount", $user, $t);
