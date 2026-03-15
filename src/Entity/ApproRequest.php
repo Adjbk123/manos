@@ -29,7 +29,7 @@ class ApproRequest
     private ?Operator $operator = null;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     #[Groups(['appro_request:read', 'appro_request:write'])]
     private ?User $agent = null;
 

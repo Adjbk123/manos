@@ -192,4 +192,14 @@ class Sale
 
         return $this;
     }
+
+    #[Groups(['sale:read'])]
+    public function getProfit(): float
+    {
+        $totalProfit = 0;
+        foreach ($this->saleItems as $item) {
+            $totalProfit += (float) $item->getProfit();
+        }
+        return $totalProfit;
+    }
 }

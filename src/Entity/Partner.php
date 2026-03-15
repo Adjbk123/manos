@@ -24,7 +24,11 @@ class Partner
 
     #[ORM\Column(length: 100, nullable: true)]
     #[Groups(['partner:read', 'partner:write', 'loan:read'])]
-    private ?string $type = 'STRUCTURE'; // AGENT, STRUCTURE, etc.
+    private ?string $type = 'MARCHAND'; // AGENT, MARCHAND
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['partner:read', 'partner:write', 'loan:read'])]
+    private array $networks = [];
 
     #[ORM\Column(length: 20, nullable: true)]
     #[Groups(['partner:read', 'partner:write', 'loan:read'])]
@@ -63,6 +67,17 @@ class Partner
     public function setType(?string $type): static
     {
         $this->type = $type;
+        return $this;
+    }
+
+    public function getNetworks(): array
+    {
+        return $this->networks;
+    }
+
+    public function setNetworks(?array $networks): static
+    {
+        $this->networks = $networks ?? [];
         return $this;
     }
 

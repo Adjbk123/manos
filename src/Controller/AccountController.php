@@ -24,6 +24,15 @@ class AccountController extends AbstractController
         return new JsonResponse($json, Response::HTTP_OK, [], true);
     }
 
+    #[Route('/{id}', name: 'api_accounts_show', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function show(Account $account, SerializerInterface $serializer): JsonResponse
+    {
+        $json = $serializer->serialize($account, 'json', [
+            'groups' => ['account:read']
+        ]);
+        return new JsonResponse($json, Response::HTTP_OK, [], true);
+    }
+
     #[Route('/physical', name: 'api_accounts_physical', methods: ['GET'])]
     public function getPhysical(AccountRepository $repo, EntityManagerInterface $em, SerializerInterface $serializer): JsonResponse
     {
@@ -62,6 +71,7 @@ class AccountController extends AbstractController
         $account->setBalance($data['balance'] ?? '0');
         $account->setCurrency($data['currency'] ?? 'FCFA');
         $account->setNotes($data['notes'] ?? null);
+        $account->setPhoneNumber($data['phoneNumber'] ?? null);
 
         $em->persist($account);
         $em->flush();
@@ -102,6 +112,7 @@ class AccountController extends AbstractController
         
         if (isset($data['balance'])) $account->setBalance($data['balance']);
         if (isset($data['notes'])) $account->setNotes($data['notes']);
+        if (isset($data['phoneNumber'])) $account->setPhoneNumber($data['phoneNumber']);
 
         $em->flush();
 

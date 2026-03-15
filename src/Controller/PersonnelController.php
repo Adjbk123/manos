@@ -23,15 +23,25 @@ class PersonnelController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         $role = $request->query->get('role');
+        $excludeAdmins = $request->query->getBoolean('exclude_admins');
         $users = $userRepository->findAll();
 
-        if ($role) {
-            $users = array_values(array_filter($users, function($user) use ($role) {
+        if ($role || $excludeAdmins) {
+            $users = array_values(array_filter($users, function($user) use ($role, $excludeAdmins) {
                 $userRoles = $user->getRoles();
-                if ($role === 'ROLE_AGENT') {
-                    return in_array('ROLE_AGENT', $userRoles) || in_array('ROLE_ADMIN', $userRoles) || in_array('ROLE_SUPER_ADMIN', $userRoles);
+
+                if ($excludeAdmins && (in_array('ROLE_ADMIN', $userRoles) || in_array('ROLE_SUPER_ADMIN', $userRoles))) {
+                    return false;
                 }
-                return in_array($role, $userRoles);
+
+                if ($role) {
+                    if ($role === 'ROLE_AGENT') {
+                        return in_array('ROLE_AGENT', $userRoles) || in_array('ROLE_ADMIN', $userRoles) || in_array('ROLE_SUPER_ADMIN', $userRoles);
+                    }
+                    return in_array($role, $userRoles);
+                }
+
+                return true;
             }));
         }
         

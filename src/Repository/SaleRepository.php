@@ -15,4 +15,30 @@ class SaleRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Sale::class);
     }
+
+    public function getStats(\DateTime $start, \DateTime $end): array
+    {
+        $volume = $this->createQueryBuilder('s')
+            ->select('SUM(s.totalAmount)')
+            ->where('s.date BETWEEN :start AND :end')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $profit = $this->getEntityManager()->createQueryBuilder()
+            ->select('SUM(si.profit)')
+            ->from(\App\Entity\SaleItem::class, 'si')
+            ->join('si.sale', 's')
+            ->where('s.date BETWEEN :start AND :end')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return [
+            'total_sales' => (float)($volume ?? 0),
+            'total_profit' => (float)($profit ?? 0)
+        ];
+    }
 }

@@ -21,6 +21,16 @@ class OperationType
         self::CATEGORY_CREDIT_DATA => 'Crédit & Forfaits',
     ];
 
+    public const CODE_DEPOSIT = 'DEPOSIT'; // Dépôt : Agent envoie UV, reçoit Cash
+    public const CODE_WITHDRAWAL = 'WITHDRAWAL'; // Retrait : Agent donne Cash, reçoit UV
+    public const CODE_CREDIT = 'CREDIT'; // Vente de crédit : Agent envoie UV (virtual/credit), reçoit Cash
+
+    public const CODES = [
+        self::CODE_DEPOSIT => 'Dépôt',
+        self::CODE_WITHDRAWAL => 'Retrait',
+        self::CODE_CREDIT => 'Vente de Crédit/Data',
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -38,6 +48,10 @@ class OperationType
     #[ORM\Column(length: 100, nullable: true)]
     #[Groups(['operation_type:read', 'operation_type:write', 'operator:read', 'transaction:read'])]
     private ?string $category = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['operation_type:read', 'operation_type:write', 'operator:read', 'transaction:read'])]
+    private ?string $code = null;
 
     public function __construct()
     {
@@ -80,6 +94,18 @@ class OperationType
     public function setCategory(?string $category): static
     {
         $this->category = $category;
+
+        return $this;
+    }
+
+    public function getCode(): ?string
+    {
+        return $this->code;
+    }
+
+    public function setCode(?string $code): static
+    {
+        $this->code = $code;
 
         return $this;
     }

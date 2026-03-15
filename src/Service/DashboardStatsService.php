@@ -13,15 +13,30 @@ class DashboardStatsService
     private TransactionRepository $transactionRepository;
     private AccountRepository $accountRepository;
     private OperatorRepository $operatorRepository;
+    private \App\Repository\SaleRepository $saleRepository;
+    private \App\Repository\SupplierRepository $supplierRepository;
+    private \App\Repository\ShopCashMovementRepository $shopCashRepository;
+    private \App\Repository\StockAdjustmentRepository $adjustmentRepository;
+    private \App\Repository\StockClientRepository $clientRepository;
 
     public function __construct(
         TransactionRepository $transactionRepository,
         AccountRepository $accountRepository,
-        OperatorRepository $operatorRepository
+        OperatorRepository $operatorRepository,
+        \App\Repository\SaleRepository $saleRepository,
+        \App\Repository\SupplierRepository $supplierRepository,
+        \App\Repository\ShopCashMovementRepository $shopCashRepository,
+        \App\Repository\StockAdjustmentRepository $adjustmentRepository,
+        \App\Repository\StockClientRepository $clientRepository
     ) {
         $this->transactionRepository = $transactionRepository;
         $this->accountRepository = $accountRepository;
         $this->operatorRepository = $operatorRepository;
+        $this->saleRepository = $saleRepository;
+        $this->supplierRepository = $supplierRepository;
+        $this->shopCashRepository = $shopCashRepository;
+        $this->adjustmentRepository = $adjustmentRepository;
+        $this->clientRepository = $clientRepository;
     }
 
     public function getDashboardStats(\DateTime $startDate, \DateTime $endDate): array
@@ -67,14 +82,22 @@ class DashboardStatsService
 
         foreach ($transactions as $row) {
             $type = 'other';
-            $cat = $row['category'] ?? '';
-            $svc = mb_strtolower($row['service']);
+            $code = $row['code'] ?? '';
             
-            if ($cat === OperationType::CATEGORY_MOBILE_MONEY) {
-                if (str_contains($svc, 'dépôt') || str_contains($svc, 'depot')) $type = 'deposit';
-                elseif (str_contains($svc, 'retrait')) $type = 'withdrawal';
-            } elseif ($cat === OperationType::CATEGORY_CREDIT_DATA) {
-                $type = 'sale';
+            if ($code === OperationType::CODE_DEPOSIT) $type = 'deposit';
+            elseif ($code === OperationType::CODE_WITHDRAWAL) $type = 'withdrawal';
+            elseif ($code === OperationType::CODE_CREDIT) $type = 'sale';
+            else {
+                // FALLBACK if code is not set
+                $cat = $row['category'] ?? '';
+                $svc = mb_strtolower($row['service'] ?? '');
+                
+                if ($cat === OperationType::CATEGORY_MOBILE_MONEY) {
+                    if (str_contains($svc, 'dépôt') || str_contains($svc, 'depot')) $type = 'deposit';
+                    elseif (str_contains($svc, 'retrait')) $type = 'withdrawal';
+                } elseif ($cat === OperationType::CATEGORY_CREDIT_DATA) {
+                    $type = 'sale';
+                }
             }
             
             if ($type !== 'other') {
@@ -119,17 +142,31 @@ class DashboardStatsService
         $totalForfait = 0;
 
         foreach ($globalStats as $stat) {
-            $cat = $stat['category'] ?? '';
-            $var = mb_strtolower($stat['variant'] ?? '');
+            $code = $stat['code'] ?? '';
             $vol = (float)$stat['volume'];
+            $type = 'other';
 
-            if ($cat === OperationType::CATEGORY_MOBILE_MONEY) {
-                if (str_contains($var, 'dépôt') || str_contains($var, 'depot')) $totalDepots += $vol;
-                elseif (str_contains($var, 'retrait')) $totalRetraits += $vol;
-            } 
-            
-            if ($cat === OperationType::CATEGORY_CREDIT_DATA) {
-                if (str_contains($var, 'forfait')) {
+            if ($code === OperationType::CODE_DEPOSIT) $type = 'deposit';
+            elseif ($code === OperationType::CODE_WITHDRAWAL) $type = 'withdrawal';
+            elseif ($code === OperationType::CODE_CREDIT) $type = 'sale';
+            else {
+                $cat = $stat['category'] ?? '';
+                $svc = mb_strtolower($stat['variant'] ?? '');
+                
+                if ($cat === OperationType::CATEGORY_MOBILE_MONEY) {
+                    if (str_contains($svc, 'dépôt') || str_contains($svc, 'depot')) $type = 'deposit';
+                    elseif (str_contains($svc, 'retrait')) $type = 'withdrawal';
+                } elseif ($cat === OperationType::CATEGORY_CREDIT_DATA) {
+                    $type = 'sale';
+                }
+            }
+
+            if ($type === 'deposit') {
+                $totalDepots += $vol;
+            } elseif ($type === 'withdrawal') {
+                $totalRetraits += $vol;
+            } elseif ($type === 'sale') {
+                if (str_contains(mb_strtolower($stat['variant'] ?? ''), 'forfait')) {
                     $totalForfait += $vol;
                 } else {
                     $totalCredit += $vol;
@@ -147,7 +184,28 @@ class DashboardStatsService
                     'retraits' => $totalRetraits,
                     'credit' => $totalCredit,
                     'forfait' => $totalForfait
-                ]
+                ],
+                'distribution' => [
+                    ['service' => 'Dépôts', 'volume' => $totalDepots],
+                    ['service' => 'Retraits', 'volume' => $totalRetraits],
+                    ['service' => 'Ventes', 'volume' => $totalCredit + $totalForfait],
+                ],
+                'store' => array_merge(
+                    $this->saleRepository->getStats($startDate, $endDate),
+                    [
+                        'shop_cash_balance' => $this->shopCashRepository->getBalance(),
+                        'supplier_debt' => (float)$this->supplierRepository->createQueryBuilder('s')->select('SUM(s.balance)')->getQuery()->getSingleScalarResult(),
+                        'client_debt' => (float)$this->clientRepository->createQueryBuilder('c')->select('SUM(c.currentDebt)')->getQuery()->getSingleScalarResult(),
+                        'losses_value' => (float)$this->adjustmentRepository->createQueryBuilder('a')
+                            ->join('a.batch', 'b')
+                            ->select('SUM(a.quantity * b.purchasePrice)')
+                            ->where('a.createdAt BETWEEN :start AND :end')
+                            ->setParameter('start', $startDate)
+                            ->setParameter('end', $endDate)
+                            ->getQuery()
+                            ->getSingleScalarResult()
+                    ]
+                )
             ],
             'performance' => $performanceData,
             'distribution' => $distribution,
@@ -155,7 +213,8 @@ class DashboardStatsService
             'period' => [
                 'start' => $startDate->format('Y-m-d'),
                 'end' => $endDate->format('Y-m-d')
-            ]
+            ],
+            'recent' => $this->transactionRepository->getRecentTransactions(10)
         ];
     }
 }

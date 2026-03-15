@@ -48,6 +48,10 @@ class Account
     #[Groups(['account:read', 'account:write'])]
     private ?string $notes = null;
 
+    #[ORM\Column(length: 20, nullable: true)]
+    #[Groups(['account:read', 'account:write', 'operator:read'])]
+    private ?string $phoneNumber = null;
+
     public function __construct()
     {
         $this->updatedAt = new \DateTime();
@@ -130,6 +134,17 @@ class Account
     public function setNotes(?string $notes): static
     {
         $this->notes = $notes;
+        return $this;
+    }
+
+    public function getPhoneNumber(): ?string
+    {
+        return $this->phoneNumber;
+    }
+
+    public function setPhoneNumber(?string $phoneNumber): static
+    {
+        $this->phoneNumber = $phoneNumber;
         return $this;
     }
 }

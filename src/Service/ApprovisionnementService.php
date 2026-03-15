@@ -36,9 +36,15 @@ class ApprovisionnementService
             throw new BadRequestHttpException('Opérateur invalide (requis pour virtuel/crédit).');
         }
 
-        $agent = $this->em->getRepository(User::class)->find($data['agent_id'] ?? 0);
-        if (!$agent) {
-            throw new BadRequestHttpException('Agent invalide.');
+        $autoValidate = !empty($data['auto_validate']);
+
+        // Agent is optional if auto_validate (admin applies directly)
+        $agent = null;
+        if (!$autoValidate) {
+            $agent = $this->em->getRepository(User::class)->find($data['agent_id'] ?? 0);
+            if (!$agent) {
+                throw new BadRequestHttpException('Agent invalide.');
+            }
         }
 
         if (!isset($data['montant']) || !is_numeric($data['montant']) || $data['montant'] <= 0) {
@@ -51,7 +57,7 @@ class ApprovisionnementService
 
         $request = new ApproRequest();
         $request->setOperator($operator);
-        $request->setAgent($agent);
+        if ($agent) $request->setAgent($agent);
         $request->setCreatedBy($admin);
         $request->setCompte($data['compte']);
         $request->setMontant($data['montant']);
@@ -61,9 +67,39 @@ class ApprovisionnementService
         $this->em->persist($request);
         $this->em->flush();
 
-        $this->mailerService->sendApproNotification($request);
+        if ($autoValidate) {
+            // Admin validates immediately, no agent confirmation needed
+            $this->validateRequestDirectly($admin, $request);
+        } else {
+            $this->mailerService->sendApproNotification($request);
+        }
 
         return $request;
+    }
+
+    /**
+     * Direct validation by admin (no agent ownership check).
+     */
+    public function validateRequestDirectly(User $admin, ApproRequest $request): void
+    {
+        $request->setStatus(ApproRequest::STATUS_APPROVED);
+        $request->setValidatedBy($admin);
+        $request->setValidatedAt(new \DateTime());
+
+        $amount = $request->getMontant();
+        $accountRepo = $this->em->getRepository(Account::class);
+
+        if ($request->getCompte() !== Account::TYPE_PHYSICAL) {
+            $operatorAccount = $accountRepo->findOneBy(['operator' => $request->getOperator(), 'type' => $request->getCompte()]);
+            if ($operatorAccount)
+                $this->balanceService->adjust($operatorAccount, $amount, $admin, null, "Appro direct par admin #{$request->getId()}", BalanceMovement::TYPE_APPRO);
+        } else {
+            $physAccount = $accountRepo->findOneBy(['operator' => null, 'type' => Account::TYPE_PHYSICAL]);
+            if ($physAccount)
+                $this->balanceService->adjust($physAccount, $amount, $admin, null, "Appro direct par admin #{$request->getId()}", BalanceMovement::TYPE_APPRO);
+        }
+
+        $this->em->flush();
     }
 
     public function validateRequest(User $validator, int $requestId): ApproRequest

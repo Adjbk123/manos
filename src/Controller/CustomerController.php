@@ -16,9 +16,15 @@ use Symfony\Component\Serializer\SerializerInterface;
 class CustomerController extends AbstractController
 {
     #[Route('', name: 'api_customers_index', methods: ['GET'])]
-    public function index(CustomerRepository $repository, SerializerInterface $serializer): JsonResponse
+    public function index(Request $request, CustomerRepository $repository, SerializerInterface $serializer): JsonResponse
     {
-        $customers = $repository->findAll();
+        $phone = $request->query->get('phone');
+        if ($phone) {
+            $customers = $repository->findBy(['phone' => $phone]);
+        } else {
+            $customers = $repository->findAll();
+        }
+
         return new JsonResponse(
             $serializer->serialize($customers, 'json', ['groups' => 'customer:read']),
             Response::HTTP_OK,

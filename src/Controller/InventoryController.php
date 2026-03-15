@@ -4,11 +4,15 @@ namespace App\Controller;
 
 use App\Entity\Product;
 use App\Entity\ProductCategory;
+use App\Entity\PriceHistory;
 use App\Entity\StockBatch;
 use App\Entity\StockArrival;
+use App\Entity\Supplier;
 use App\Repository\ProductCategoryRepository;
 use App\Repository\ProductRepository;
 use App\Repository\StockArrivalRepository;
+use App\Repository\SupplierRepository;
+use App\Service\ShopCashService;
 use App\Service\PdfService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -45,12 +49,93 @@ class InventoryController extends AbstractController
 
         $product->setDescription($data['description'] ?? null);
         $product->setImage($data['image'] ?? null);
-        $product->setStockQuantity(0);
+        
+        $initialQuantity = (int)($data['quantity'] ?? 0);
+        $product->setStockQuantity($initialQuantity);
+        $product->setAlertThreshold((int)($data['alertThreshold'] ?? 5));
+        $product->setIsActive($data['isActive'] ?? true);
+
+        $sellingPrice = !empty($data['sellingPrice']) ? (string)$data['sellingPrice'] : null;
+        if ($sellingPrice) {
+            $product->setSellingPrice($sellingPrice);
+        }
+
+        $em->persist($product);
+
+        // Si un stock initial est fourni, créer un lot (Batch) automatiquement
+        if ($initialQuantity > 0) {
+            $batch = new StockBatch();
+            $batch->setProduct($product);
+            $batch->setQuantityInitial($initialQuantity);
+            $batch->setQuantityRemaining($initialQuantity);
+            $batch->setPurchasePrice($data['purchasePrice'] ?? 0);
+            $batch->setTargetSellingPrice($sellingPrice ?? 0);
+            $batch->setMinSellingPrice($sellingPrice ?? 0);
+            $batch->setPurchaseDate(new \DateTime());
+            $batch->setSupplier("Initial Stock");
+            $em->persist($batch);
+        }
+
+        // Enregistrer l'historique du prix initial
+        if ($sellingPrice) {
+            $this->recordPriceHistory($product, $sellingPrice, $em);
+        }
+
+        $em->flush();
+
+        return $this->json($product, 201, [], ['groups' => 'stock:read']);
+    }
+
+    #[Route('/products/{id}', name: 'api_stock_products_update', methods: ['PUT'])]
+    public function updateProduct(int $id, Request $request, EntityManagerInterface $em, ProductRepository $productRepository, ProductCategoryRepository $categoryRepository): JsonResponse
+    {
+        $product = $productRepository->find($id);
+        if (!$product) {
+            return $this->json(['error' => 'Produit introuvable'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        $product->setName($data['name'] ?? $product->getName());
+        $product->setDescription($data['description'] ?? $product->getDescription());
+        $product->setAlertThreshold((int)($data['alertThreshold'] ?? $product->getAlertThreshold()));
+        $product->setIsActive($data['isActive'] ?? $product->isActive());
+
+        if (isset($data['categoryId'])) {
+            $category = $categoryRepository->find($data['categoryId']);
+            if ($category) {
+                $product->setCategory($category);
+            }
+        }
+
+        // Gestion du changement de prix avec historique
+        if (isset($data['sellingPrice'])) {
+            $newPrice = (string)$data['sellingPrice'];
+            $oldPrice = $product->getSellingPrice();
+            $product->setSellingPrice($newPrice);
+
+            if ($oldPrice !== $newPrice) {
+                $this->recordPriceHistory($product, $newPrice, $em);
+            }
+        }
 
         $em->persist($product);
         $em->flush();
 
-        return $this->json($product, 201, [], ['groups' => 'stock:read']);
+        return $this->json($product, 200, [], ['groups' => 'stock:read']);
+    }
+
+    private function recordPriceHistory(Product $product, string $price, EntityManagerInterface $em): void
+    {
+        $user = $this->getUser();
+
+        $priceHistory = new PriceHistory();
+        $priceHistory->setProduct($product);
+        $priceHistory->setPrice($price);
+        $priceHistory->setUser($user);
+        $priceHistory->setEffectiveFrom(new \DateTimeImmutable());
+
+        $em->persist($priceHistory);
     }
 
     #[Route('/batches', name: 'api_stock_batches_create', methods: ['POST'])]
@@ -123,7 +208,10 @@ class InventoryController extends AbstractController
     public function createArrival(
         Request $request,
         ProductRepository $productRepository,
-        EntityManagerInterface $em
+        StockArrivalRepository $arrivalRepository,
+        SupplierRepository $supplierRepository,
+        EntityManagerInterface $em,
+        ShopCashService $cashService
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
@@ -133,8 +221,15 @@ class InventoryController extends AbstractController
         }
 
         $arrival = new StockArrival();
-        $arrival->setReference($data['reference'] ?? 'ARR-' . date('Ymd-His'));
-        $arrival->setSupplier($data['supplier'] ?? null);
+        $arrival->setReference($arrivalRepository->generateReference());
+
+        if (isset($data['supplierId'])) {
+            $supplier = $supplierRepository->find($data['supplierId']);
+            if ($supplier) {
+                $arrival->setSupplier($supplier);
+            }
+        }
+        
         $arrival->setArrivalDate(new \DateTime($data['arrivalDate'] ?? 'now'));
 
         $totalAmount = 0;
@@ -170,6 +265,37 @@ class InventoryController extends AbstractController
         }
 
         $arrival->setTotalAmount($totalAmount);
+        
+        $paidAmount = (float)($data['paidAmount'] ?? 0);
+        $arrival->setPaidAmount((string)$paidAmount);
+        
+        $dueAmount = $totalAmount - $paidAmount;
+        if ($dueAmount <= 0) {
+            $arrival->setPaymentStatus('PAID');
+        } elseif ($paidAmount > 0) {
+            $arrival->setPaymentStatus('PARTIAL');
+        } else {
+            $arrival->setPaymentStatus('UNPAID');
+        }
+
+        // Si il reste un montant dû, on l'ajoute à la balance du fournisseur
+        if ($dueAmount > 0 && $arrival->getSupplier()) {
+            $currentBalance = (float)$arrival->getSupplier()->getBalance();
+            $arrival->getSupplier()->setBalance((string)($currentBalance + $dueAmount));
+            $em->persist($arrival->getSupplier());
+        }
+
+        // Record Shop Cash Movement if paid
+        if ($paidAmount > 0) {
+            $cashService->addMovement(
+                'OUT',
+                $paidAmount,
+                "Acompte arrivage " . $arrival->getReference() . ($arrival->getSupplier() ? " - " . $arrival->getSupplier()->getName() : ""),
+                'ARRIVAL',
+                $arrival->getId(),
+                $this->getUser()
+            );
+        }
 
         $em->persist($arrival);
         $em->flush();

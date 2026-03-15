@@ -6,6 +6,7 @@ use App\Entity\Account;
 use App\Entity\BalanceMovement;
 use App\Entity\Transaction;
 use App\Entity\Loan;
+use App\Entity\Cession;
 use App\Entity\User;
 use App\Entity\OperationType;
 use App\Repository\AccountRepository;
@@ -55,35 +56,34 @@ class BalanceService
         }
 
         // 2. Apply rules
-        // Match category using constant from OperationType or loose match
-        $isMM = ($category === OperationType::CATEGORY_MOBILE_MONEY) || (stripos($category, 'Mobile Money') !== false);
+        $code = $opType->getCode();
 
-        if ($isMM) {
+        if ($code === OperationType::CODE_WITHDRAWAL) {
+            // RETRAIT pour le client = AGENT DONNE DU CASH / REÇOIT DU VIRTUEL
             if (!$virtualAccount) {
                 throw new \RuntimeException("Compte VIRTUEL manquant pour cet opérateur.");
             }
-
-            $name = strtolower($opType->getName());
-            if (stripos($name, 'retrait') !== false) {
-                // RETRAIT pour le client = AGENT DONNE DU CASH / REÇOIT DU VIRTUEL
-                // Check Physical (Caisse)
-                if (bccomp($physicalAccount->getBalance(), $amount, 2) === -1) {
-                    throw new \RuntimeException("Solde PHYSIQUE (Caisse) insuffisant pour ce retrait.");
-                }
-                $this->adjust($virtualAccount, $amount, $user, $t);
-                $this->adjust($physicalAccount, "-$amount", $user, $t);
-            } else if (stripos($name, 'dépôt') !== false || stripos($name, 'depot') !== false) {
-                // DÉPÔT pour le client = AGENT ENVOIE DU VIRTUEL / REÇOIT DU CASH
-                // Check Virtual
-                if (bccomp($virtualAccount->getBalance(), $amount, 2) === -1) {
-                    throw new \RuntimeException("Solde VIRTUEL insuffisant pour ce dépôt.");
-                }
-                $this->adjust($virtualAccount, "-$amount", $user, $t);
-                $this->adjust($physicalAccount, $amount, $user, $t);
+            // Check Physical (Caisse)
+            if (bccomp($physicalAccount->getBalance(), $amount, 2) === -1) {
+                throw new \RuntimeException("Solde PHYSIQUE (Caisse) insuffisant pour ce retrait.");
             }
-        } else if (stripos($category, 'Crédit') !== false || stripos($category, 'Forfait') !== false) {
-            // VENTE CRÉDIT/DATA = AGENT DÉDUIT STOCK / REÇOIT DU CASH
+            $this->adjust($virtualAccount, $amount, $user, $t);
+            $this->adjust($physicalAccount, "-$amount", $user, $t);
+            
+        } else if ($code === OperationType::CODE_DEPOSIT) {
+            // DÉPÔT pour le client = AGENT ENVOIE DU VIRTUEL / REÇOIT DU CASH
+            if (!$virtualAccount) {
+                throw new \RuntimeException("Compte VIRTUEL manquant pour cet opérateur.");
+            }
+            // Check Virtual
+            if (bccomp($virtualAccount->getBalance(), $amount, 2) === -1) {
+                throw new \RuntimeException("Solde VIRTUEL insuffisant pour ce dépôt.");
+            }
+            $this->adjust($virtualAccount, "-$amount", $user, $t);
+            $this->adjust($physicalAccount, $amount, $user, $t);
 
+        } else if ($code === OperationType::CODE_CREDIT || stripos($category, 'Crédit') !== false || stripos($category, 'Forfait') !== false) {
+            // VENTE CRÉDIT/DATA = AGENT DÉDUIT STOCK / REÇOIT DU CASH
             // Try virtual_credit first if it exists, otherwise use virtual
             $targetVirtual = $virtualCredit;
 
@@ -103,6 +103,9 @@ class BalanceService
 
             $this->adjust($targetVirtual, "-$amount", $user, $t);
             $this->adjust($physicalAccount, $amount, $user, $t);
+        } else {
+            // Code non défini, ou fallback sur la catégorie
+            throw new \RuntimeException("Code d'opération non défini ou non reconnu pour le service : " . $opType->getName() . ". Veuillez configurer le type d'action (Retrait, Dépôt, etc.) pour ce service.");
         }
 
         $this->em->flush();
@@ -142,7 +145,7 @@ class BalanceService
     /**
      * Core method to adjust an account balance.
      */
-    public function adjust(Account $account, string $amount, User $user, ?Transaction $t = null, ?string $notes = null, string $type = BalanceMovement::TYPE_ADJUST, ?Loan $loan = null): void
+    public function adjust(Account $account, string $amount, User $user, ?Transaction $t = null, ?string $notes = null, string $type = BalanceMovement::TYPE_ADJUST, ?Loan $loan = null, ?Cession $cession = null): void
     {
         $before = $account->getBalance();
         $new = bcadd($before, $amount, 2);
@@ -165,6 +168,7 @@ class BalanceService
         $movement->setType($t ? BalanceMovement::TYPE_TRANSACTION : $type);
         $movement->setTransaction($t);
         $movement->setLoan($loan);
+        $movement->setCession($cession);
         $movement->setNotes($notes);
 
         $this->em->persist($movement);

@@ -11,6 +11,10 @@ use App\Repository\SaleRepository;
 use App\Repository\StockBatchRepository;
 use App\Repository\StockClientRepository;
 use App\Repository\UserRepository;
+use App\Repository\SupplierRepository;
+use App\Repository\ShopCashMovementRepository;
+use App\Repository\StockAdjustmentRepository;
+use App\Service\ShopCashService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -72,7 +76,8 @@ class PosController extends AbstractController
         StockBatchRepository $batchRepository,
         StockClientRepository $clientRepository,
         ProductRepository $productRepository,
-        UserRepository $userRepository
+        UserRepository $userRepository,
+        ShopCashService $cashService
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
@@ -201,6 +206,19 @@ class PosController extends AbstractController
 
             $em->persist($sale);
             $em->flush();
+
+            // Record Shop Cash Movement if CASH
+            if ($sale->getPaymentMethod() === 'CASH' && $sale->getPaidAmount() > 0) {
+                $cashService->addMovement(
+                    'IN',
+                    (float)$sale->getPaidAmount(),
+                    "Vente #" . $sale->getId() . ($sale->getClientName() ? " - " . $sale->getClientName() : ""),
+                    'SALE',
+                    $sale->getId(),
+                    $user
+                );
+            }
+
             $em->commit();
 
             return $this->json($sale, 201, [], ['groups' => 'sale:read']);
@@ -237,7 +255,8 @@ class PosController extends AbstractController
         Request $request,
         StockClientRepository $clientRepository,
         EntityManagerInterface $em,
-        UserRepository $userRepository
+        UserRepository $userRepository,
+        ShopCashService $cashService
     ): JsonResponse {
         $client = $clientRepository->find($id);
         if (!$client) {
@@ -313,6 +332,19 @@ class PosController extends AbstractController
 
         $client->setCurrentDebt($client->getCurrentDebt() - $amount);
         $em->persist($client);
+
+        // Record Shop Cash Movement if CASH
+        if ($paymentMethod === 'CASH') {
+            $cashService->addMovement(
+                'IN',
+                (float)$amount,
+                "Remboursement dette client : " . $client->getName(),
+                'DEBT_REPAYMENT',
+                null,
+                $user
+            );
+        }
+
         $em->flush();
 
         return $this->json($client, 200, [], ['groups' => 'stock_client:read']);
@@ -344,6 +376,56 @@ class PosController extends AbstractController
         ], 200, [], [
             'groups' => ['product:read', 'stock:read', 'product_detail:read'],
             'enable_max_depth' => true,
+        ]);
+    }
+
+    #[Route('/stats', name: 'api_pos_stats', methods: ['GET'])]
+    public function getStats(
+        Request $request,
+        SaleRepository $saleRepository,
+        SupplierRepository $supplierRepository,
+        ShopCashMovementRepository $shopCashRepository,
+        StockAdjustmentRepository $adjustmentRepository,
+        StockClientRepository $clientRepository
+    ): JsonResponse {
+        $startDate = $request->query->get('start') ? new \DateTime($request->query->get('start')) : new \DateTime('first day of this month 00:00:00');
+        $endDate = $request->query->get('end') ? new \DateTime($request->query->get('end')) : new \DateTime('now');
+        $endDate->setTime(23, 59, 59);
+
+        $salesStats = $saleRepository->getStats($startDate, $endDate);
+        
+        $supplierDebt = (float)$supplierRepository->createQueryBuilder('s')
+            ->select('SUM(s.balance)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $clientDebt = (float)$clientRepository->createQueryBuilder('c')
+            ->select('SUM(c.currentDebt)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $shopCashBalance = $shopCashRepository->getBalance();
+
+        $lossesValue = (float)$adjustmentRepository->createQueryBuilder('a')
+            ->join('a.batch', 'b')
+            ->select('SUM(a.quantity * b.purchasePrice)')
+            ->where('a.createdAt BETWEEN :start AND :end')
+            ->setParameter('start', $startDate)
+            ->setParameter('end', $endDate)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $this->json([
+            'sales' => $salesStats['total_sales'],
+            'profit' => $salesStats['total_profit'],
+            'supplier_debt' => $supplierDebt,
+            'client_debt' => $clientDebt,
+            'shop_cash_balance' => $shopCashBalance,
+            'losses_value' => $lossesValue,
+            'period' => [
+                'start' => $startDate->format('Y-m-d'),
+                'end' => $endDate->format('Y-m-d')
+            ]
         ]);
     }
 }

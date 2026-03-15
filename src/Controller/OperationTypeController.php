@@ -40,6 +40,7 @@ class OperationTypeController extends AbstractController
         $type->setName($data['name']);
         $type->setDescription($data['description'] ?? null);
         $type->setCategory($data['category'] ?? null);
+        $type->setCode($data['code'] ?? null);
 
         $em->persist($type);
         $em->flush();
@@ -64,6 +65,7 @@ class OperationTypeController extends AbstractController
         if (isset($data['name'])) $type->setName($data['name']);
         if (isset($data['description'])) $type->setDescription($data['description']);
         if (isset($data['category'])) $type->setCategory($data['category']);
+        if (array_key_exists('code', $data)) $type->setCode($data['code']);
 
         $em->flush();
 

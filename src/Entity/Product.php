@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 class Product
 {
     #[ORM\Id]
@@ -39,13 +40,36 @@ class Product
     #[Groups(['product:read', 'stock:read'])]
     private ?int $stockQuantity = 0;
 
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2, nullable: true)]
+    #[Groups(['product:read', 'product:write', 'stock:read', 'sale:read'])]
+    private ?string $sellingPrice = null;
+
+    #[ORM\Column]
+    #[Groups(['product:read', 'stock:read'])]
+    private int $alertThreshold = 5;
+
+    #[ORM\Column]
+    #[Groups(['product:read', 'stock:read'])]
+    private bool $isActive = true;
+
     #[ORM\OneToMany(mappedBy: 'product', targetEntity: StockBatch::class, orphanRemoval: true)]
     #[Groups(['product:read', 'stock:read'])]
     private Collection $stockBatches;
 
+    /**
+     * @var Collection<int, PriceHistory>
+     */
+    #[ORM\OneToMany(mappedBy: 'product', targetEntity: PriceHistory::class, cascade: ['persist', 'remove'])]
+    #[Groups(['product:read'])]
+    private Collection $priceHistories;
+
+    // To track price changes
+    private ?string $originalPrice = null;
+
     public function __construct()
     {
         $this->stockBatches = new ArrayCollection();
+        $this->priceHistories = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -113,6 +137,42 @@ class Product
         return $this;
     }
 
+    public function getSellingPrice(): ?string
+    {
+        return $this->sellingPrice;
+    }
+
+    public function setSellingPrice(?string $sellingPrice): self
+    {
+        $this->sellingPrice = $sellingPrice;
+
+        return $this;
+    }
+
+    public function getAlertThreshold(): int
+    {
+        return $this->alertThreshold;
+    }
+
+    public function setAlertThreshold(int $alertThreshold): self
+    {
+        $this->alertThreshold = $alertThreshold;
+
+        return $this;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function setIsActive(bool $isActive): self
+    {
+        $this->isActive = $isActive;
+
+        return $this;
+    }
+
     /**
      * @return Collection<int, StockBatch>
      */
@@ -143,9 +203,33 @@ class Product
         return $this;
     }
 
+    /**
+     * @return Collection<int, PriceHistory>
+     */
+    public function getPriceHistories(): Collection
+    {
+        return $this->priceHistories;
+    }
+
+    #[ORM\PostLoad]
+    public function storeOriginalPrice(): void
+    {
+        $this->originalPrice = $this->sellingPrice;
+    }
+
+    public function getOriginalPrice(): ?string
+    {
+        return $this->originalPrice;
+    }
+
     #[Groups(['stock:read'])]
     public function getSuggestedPrice(): ?float
     {
+        // If sellingPrice is explicitly set on product, use it
+        if ($this->sellingPrice !== null) {
+            return (float) $this->sellingPrice;
+        }
+        // Otherwise fall back to FIFO batch price
         return $this->getTargetPrice();
     }
 

@@ -53,6 +53,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:read', 'user:write'])]
     private ?bool $actif = true;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['user:read', 'user:write'])]
+    private ?string $avatar = null;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups(['user:read'])]
     private ?\DateTimeInterface $createdAt = null;
@@ -67,6 +71,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getAvatar(): ?string
+    {
+        return $this->avatar;
+    }
+
+    public function setAvatar(?string $avatar): static
+    {
+        $this->avatar = $avatar;
+        return $this;
     }
 
     public function getAgence(): ?Agence

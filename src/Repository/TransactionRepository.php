@@ -24,7 +24,7 @@ class TransactionRepository extends ServiceEntityRepository
     public function getPerformanceStats(\DateTime $startDate, \DateTime $endDate)
     {
         return $this->createQueryBuilder('t')
-            ->select('SUBSTRING(t.createdAt, 1, 10) as date', 'o.name as operator', 'ot.name as service', 'ot.category', 'SUM(t.amount) as volume')
+            ->select('SUBSTRING(t.createdAt, 1, 10) as date', 'o.name as operator', 'ot.name as service', 'ot.category', 'ot.code', 'SUM(ABS(t.amount)) as volume')
             ->join('t.operationType', 'ot')
             ->join('t.operator', 'o')
             ->where('t.createdAt BETWEEN :start AND :end')
@@ -32,7 +32,7 @@ class TransactionRepository extends ServiceEntityRepository
             ->setParameter('start', $startDate)
             ->setParameter('end', $endDate)
             ->setParameter('status', Transaction::STATUS_SUCCESS)
-            ->groupBy('date', 'o.name', 'ot.name', 'ot.category')
+            ->groupBy('date', 'o.name', 'ot.name', 'ot.category', 'ot.code')
             ->orderBy('date', 'ASC')
             ->getQuery()->getResult();
     }
@@ -40,7 +40,7 @@ class TransactionRepository extends ServiceEntityRepository
     public function getServiceDistributionStats(\DateTime $startDate, \DateTime $endDate)
     {
         return $this->createQueryBuilder('t')
-            ->select('ot.name as service', 'ot.category', 'o.name as operator', 'SUM(t.amount) as volume', 'COUNT(t.id) as count')
+            ->select('ot.name as service', 'ot.category', 'ot.code', 'o.name as operator', 'SUM(ABS(t.amount)) as volume', 'COUNT(t.id) as count')
             ->join('t.operationType', 'ot')
             ->join('t.operator', 'o')
             ->where('t.createdAt BETWEEN :start AND :end')
@@ -48,7 +48,7 @@ class TransactionRepository extends ServiceEntityRepository
             ->setParameter('start', $startDate)
             ->setParameter('end', $endDate)
             ->setParameter('status', Transaction::STATUS_SUCCESS)
-            ->groupBy('ot.name', 'ot.category', 'o.name')
+            ->groupBy('ot.name', 'ot.category', 'ot.code', 'o.name')
             ->getQuery()->getResult();
     }
 
@@ -67,14 +67,14 @@ class TransactionRepository extends ServiceEntityRepository
     public function getGlobalVolumeStats(\DateTime $startDate, \DateTime $endDate)
     {
         return $this->createQueryBuilder('t')
-            ->select('ot.category', 'ot.name as variant', 'SUM(t.amount) as volume')
+            ->select('ot.category', 'ot.name as variant', 'ot.code', 'SUM(ABS(t.amount)) as volume')
             ->join('t.operationType', 'ot')
             ->where('t.createdAt BETWEEN :start AND :end')
             ->andWhere('t.status = :status')
             ->setParameter('start', $startDate)
             ->setParameter('end', $endDate)
             ->setParameter('status', Transaction::STATUS_SUCCESS)
-            ->groupBy('ot.category', 'ot.name')
+            ->groupBy('ot.category', 'ot.name', 'ot.code')
             ->getQuery()->getResult();
     }
 

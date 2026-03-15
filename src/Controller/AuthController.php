@@ -192,5 +192,43 @@ class AuthController extends AbstractController
             json_decode($serializer->serialize($user, 'json', ['groups' => 'user:read']))
         );
     }
+
+    #[Route('/user/{id}/avatar', name: 'user_avatar_update', methods: ['POST'])]
+    public function updateAvatar(
+        int $id,
+        Request $request,
+        UserRepository $userRepository,
+        EntityManagerInterface $entityManager,
+        SerializerInterface $serializer
+    ): JsonResponse {
+        $user = $userRepository->find($id);
+        if (!$user) {
+            return new JsonResponse(['error' => 'Utilisateur non trouvé'], 404);
+        }
+
+        if ($user !== $this->getUser() && !$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse(['error' => 'Accès refusé'], 403);
+        }
+
+        $file = $request->files->get('avatar');
+        if (!$file) {
+            return new JsonResponse(['error' => 'Aucun fichier reçu'], 400);
+        }
+
+        $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/avatars';
+        if (!file_exists($uploadsDir)) {
+            mkdir($uploadsDir, 0777, true);
+        }
+
+        $fileName = uniqid() . '.' . $file->guessExtension();
+        $file->move($uploadsDir, $fileName);
+        
+        $user->setAvatar('/uploads/avatars/' . $fileName);
+        $entityManager->flush();
+
+        return new JsonResponse(
+            json_decode($serializer->serialize($user, 'json', ['groups' => 'user:read']))
+        );
+    }
 }
 

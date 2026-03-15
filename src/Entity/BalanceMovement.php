@@ -16,6 +16,7 @@ class BalanceMovement
     const TYPE_APPRO = 'appro';
     const TYPE_ADJUST = 'adjust';
     const TYPE_LOAN = 'loan';
+    const TYPE_CESSION = 'cession';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -62,6 +63,11 @@ class BalanceMovement
     #[ORM\JoinColumn(nullable: true)]
     #[Groups(['balance_movement:read'])]
     private ?Loan $loan = null;
+
+    #[ORM\ManyToOne(targetEntity: Cession::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['balance_movement:read'])]
+    private ?Cession $cession = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['balance_movement:read'])]
@@ -173,6 +179,17 @@ class BalanceMovement
     public function setLoan(?Loan $loan): static
     {
         $this->loan = $loan;
+        return $this;
+    }
+
+    public function getCession(): ?Cession
+    {
+        return $this->cession;
+    }
+
+    public function setCession(?Cession $cession): static
+    {
+        $this->cession = $cession;
         return $this;
     }
 

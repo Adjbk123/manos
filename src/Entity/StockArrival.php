@@ -18,13 +18,17 @@ class StockArrival
     #[Groups(['stock_arrival:read', 'stock_arrival:write', 'stock:read'])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\ManyToOne(targetEntity: Supplier::class, inversedBy: 'stockArrivals')]
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
-    private ?string $reference = null;
+    private ?Supplier $supplier = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
-    private ?string $supplier = null;
+    private ?string $paidAmount = '0.00';
+
+    #[ORM\Column(length: 20)]
+    #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
+    private ?string $paymentStatus = 'UNPAID'; // PAID, PARTIAL, UNPAID
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
@@ -65,15 +69,36 @@ class StockArrival
         return $this;
     }
 
-    public function getSupplier(): ?string
+    public function getSupplier(): ?Supplier
     {
         return $this->supplier;
     }
 
-    public function setSupplier(?string $supplier): self
+    public function setSupplier(?Supplier $supplier): self
     {
         $this->supplier = $supplier;
+        return $this;
+    }
 
+    public function getPaidAmount(): ?string
+    {
+        return $this->paidAmount;
+    }
+
+    public function setPaidAmount(string $paidAmount): self
+    {
+        $this->paidAmount = $paidAmount;
+        return $this;
+    }
+
+    public function getPaymentStatus(): ?string
+    {
+        return $this->paymentStatus;
+    }
+
+    public function setPaymentStatus(string $paymentStatus): self
+    {
+        $this->paymentStatus = $paymentStatus;
         return $this;
     }
 

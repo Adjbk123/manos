@@ -34,8 +34,9 @@ class PartnerController extends AbstractController
 
         $partner = new Partner();
         $partner->setName($data['name'] ?? '');
-        $partner->setType($data['type'] ?? 'STRUCTURE');
+        $partner->setType($data['type'] ?? 'MARCHAND');
         $partner->setPhone($data['phone'] ?? null);
+        $partner->setNetworks($data['networks'] ?? []);
 
         if (empty($partner->getName())) {
             return $this->json(['error' => 'Le nom est obligatoire'], Response::HTTP_BAD_REQUEST);
@@ -47,6 +48,17 @@ class PartnerController extends AbstractController
         return new JsonResponse(
             $serializer->serialize($partner, 'json', ['groups' => 'partner:read']),
             Response::HTTP_CREATED,
+            [],
+            true
+        );
+    }
+
+    #[Route('/{id}', name: 'api_partners_show', methods: ['GET'])]
+    public function show(Partner $partner, SerializerInterface $serializer): JsonResponse
+    {
+        return new JsonResponse(
+            $serializer->serialize($partner, 'json', ['groups' => 'partner:read']),
+            Response::HTTP_OK,
             [],
             true
         );
