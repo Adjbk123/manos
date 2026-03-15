@@ -329,4 +329,40 @@ class InventoryController extends AbstractController
 
         return $this->json($category, 201, [], ['groups' => 'category:read']);
     }
+
+    #[Route('/categories/{id}', name: 'api_stock_categories_update', methods: ['PUT'])]
+    public function updateCategory(int $id, Request $request, ProductCategoryRepository $categoryRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $category = $categoryRepository->find($id);
+        if (!$category) {
+            return $this->json(['error' => 'Catégorie introuvable'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $category->setName($data['name'] ?? $category->getName());
+        $category->setDescription($data['description'] ?? $category->getDescription());
+
+        $em->flush();
+
+        return $this->json($category, 200, [], ['groups' => 'category:read']);
+    }
+
+    #[Route('/categories/{id}', name: 'api_stock_categories_delete', methods: ['DELETE'])]
+    public function deleteCategory(int $id, ProductCategoryRepository $categoryRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $category = $categoryRepository->find($id);
+        if (!$category) {
+            return $this->json(['error' => 'Catégorie introuvable'], 404);
+        }
+
+        // Vérifier si des produits y sont attachés
+        if (count($category->getProducts()) > 0) {
+            return $this->json(['error' => 'Impossible de supprimer une catégorie contenant des produits'], 400);
+        }
+
+        $em->remove($category);
+        $em->flush();
+
+        return $this->json(['message' => 'Catégorie supprimée'], 200);
+    }
 }
