@@ -34,6 +34,11 @@ class PriceHistory
     #[Groups(['price_history:read', 'product:read'])]
     private ?User $user = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['price_history:read', 'product:read'])]
+    private ?SaleZone $saleZone = null;
+
     public function __construct()
     {
         $this->effectiveFrom = new \DateTimeImmutable();
@@ -88,6 +93,18 @@ class PriceHistory
     public function setUser(?User $user): self
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    public function getSaleZone(): ?SaleZone
+    {
+        return $this->saleZone;
+    }
+
+    public function setSaleZone(?SaleZone $saleZone): self
+    {
+        $this->saleZone = $saleZone;
 
         return $this;
     }

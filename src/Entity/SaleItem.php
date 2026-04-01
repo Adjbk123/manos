@@ -43,6 +43,11 @@ class SaleItem
     #[Groups(['sale:read', 'product_detail:read'])]
     private ?string $profit = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['sale:read', 'product_detail:read'])]
+    private ?SaleZone $saleZone = null;
+
     public function __construct()
     {
     }
@@ -120,6 +125,18 @@ class SaleItem
     public function setProfit(?string $profit): self
     {
         $this->profit = $profit;
+
+        return $this;
+    }
+
+    public function getSaleZone(): ?SaleZone
+    {
+        return $this->saleZone;
+    }
+
+    public function setSaleZone(?SaleZone $saleZone): self
+    {
+        $this->saleZone = $saleZone;
 
         return $this;
     }

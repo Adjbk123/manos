@@ -26,9 +26,10 @@ use Symfony\Component\Serializer\SerializerInterface;
 class InventoryController extends AbstractController
 {
     #[Route('/products', name: 'api_stock_products_list', methods: ['GET'])]
-    public function listProducts(ProductRepository $productRepository): JsonResponse
+    public function listProducts(Request $request, ProductRepository $productRepository): JsonResponse
     {
-        $products = $productRepository->findAll();
+        $filters = $request->query->all();
+        $products = $productRepository->findByFilters($filters);
         return $this->json($products, 200, [], ['groups' => 'stock:read']);
     }
 
@@ -70,7 +71,6 @@ class InventoryController extends AbstractController
             $batch->setQuantityRemaining($initialQuantity);
             $batch->setPurchasePrice($data['purchasePrice'] ?? 0);
             $batch->setTargetSellingPrice($sellingPrice ?? 0);
-            $batch->setMinSellingPrice($sellingPrice ?? 0);
             $batch->setPurchaseDate(new \DateTime());
             $batch->setSupplier("Initial Stock");
             $em->persist($batch);
@@ -108,14 +108,16 @@ class InventoryController extends AbstractController
             }
         }
 
-        // Gestion du changement de prix avec historique
+        // Gestion du changement de prix avec historique (Admin uniquement)
         if (isset($data['sellingPrice'])) {
-            $newPrice = (string)$data['sellingPrice'];
-            $oldPrice = $product->getSellingPrice();
-            $product->setSellingPrice($newPrice);
+            if ($this->isGranted('ROLE_ADMIN')) {
+                $newPrice = (string)$data['sellingPrice'];
+                $oldPrice = $product->getSellingPrice();
+                $product->setSellingPrice($newPrice);
 
-            if ($oldPrice !== $newPrice) {
-                $this->recordPriceHistory($product, $newPrice, $em);
+                if ($oldPrice !== $newPrice) {
+                    $this->recordPriceHistory($product, $newPrice, $em);
+                }
             }
         }
 
@@ -154,7 +156,6 @@ class InventoryController extends AbstractController
         $batch = new StockBatch();
         $batch->setProduct($product);
         $batch->setPurchasePrice($data['purchasePrice']);
-        $batch->setMinSellingPrice($data['minSellingPrice']);
         $batch->setTargetSellingPrice($data['targetSellingPrice']);
         $batch->setQuantityInitial($data['quantity']);
         $batch->setQuantityRemaining($data['quantity']);
@@ -210,6 +211,7 @@ class InventoryController extends AbstractController
         ProductRepository $productRepository,
         StockArrivalRepository $arrivalRepository,
         SupplierRepository $supplierRepository,
+        \App\Repository\SaleZoneRepository $saleZoneRepository,
         EntityManagerInterface $em,
         ShopCashService $cashService
     ): JsonResponse {
@@ -249,13 +251,53 @@ class InventoryController extends AbstractController
             $batch->setQuantityInitial($quantity);
             $batch->setQuantityRemaining($quantity);
             $batch->setPurchasePrice($purchasePrice);
-            $batch->setMinSellingPrice($item['minSellingPrice'] ?? $purchasePrice); // Default to purchase if not set (bad practice but safe)
             $batch->setTargetSellingPrice($item['targetSellingPrice'] ?? $purchasePrice);
             $batch->setSupplier($data['supplier'] ?? null);
             $batch->setPurchaseDate($arrival->getArrivalDate());
 
             $arrival->addStockBatch($batch);
-            $em->persist($batch); // Persist batch so it gets an ID and linked (?) - Cascading might handle it but explicit is clearer
+            $em->persist($batch);
+
+            // ── Update Product Global Price & History ──
+            $newGlobalPrice = (string)($item['targetSellingPrice'] ?? $product->getSellingPrice());
+            if ($newGlobalPrice && $newGlobalPrice !== $product->getSellingPrice()) {
+                $product->setSellingPrice($newGlobalPrice);
+                $this->recordPriceHistory($product, $newGlobalPrice, $em);
+            }
+
+            // ── Update Zone Prices & History ──
+            if (isset($item['zonePrices']) && is_array($item['zonePrices'])) {
+                foreach ($item['zonePrices'] as $zoneId => $price) {
+                    $zone = $saleZoneRepository->find($zoneId);
+                    if (!$zone) continue;
+
+                    // Find existing ProductPrice for this zone and product
+                    $productPrice = $em->getRepository(\App\Entity\ProductPrice::class)->findOneBy([
+                        'product' => $product,
+                        'saleZone' => $zone
+                    ]);
+
+                    if (!$productPrice) {
+                        $productPrice = new \App\Entity\ProductPrice();
+                        $productPrice->setProduct($product);
+                        $productPrice->setSaleZone($zone);
+                    }
+
+                    if ($productPrice->getPrice() !== (string)$price) {
+                        $productPrice->setPrice((string)$price);
+                        $em->persist($productPrice);
+
+                        // Record Zone-Specific History
+                        $history = new \App\Entity\PriceHistory();
+                        $history->setProduct($product);
+                        $history->setPrice((string)$price);
+                        $history->setSaleZone($zone);
+                        $history->setUser($this->getUser());
+                        $history->setEffectiveFrom(new \DateTimeImmutable());
+                        $em->persist($history);
+                    }
+                }
+            }
 
             // Update Product Stock
             $product->setStockQuantity($product->getStockQuantity() + $quantity);
@@ -285,8 +327,9 @@ class InventoryController extends AbstractController
             $em->persist($arrival->getSupplier());
         }
 
-        // Record Shop Cash Movement if paid
-        if ($paidAmount > 0) {
+        // Record Shop Cash Movement only if authorized by deductFromCash flag
+        $deductFromCash = (bool)($data['deductFromCash'] ?? true);
+        if ($paidAmount > 0 && $deductFromCash) {
             $cashService->addMovement(
                 'OUT',
                 $paidAmount,

@@ -63,6 +63,13 @@ class Product
     #[Groups(['product:read'])]
     private Collection $priceHistories;
 
+    /**
+     * @var Collection<int, ProductPrice>
+     */
+    #[ORM\OneToMany(mappedBy: 'product', targetEntity: ProductPrice::class, orphanRemoval: true, cascade: ['persist', 'remove'])]
+    #[Groups(['product:read', 'stock:read', 'stock_arrival:read'])]
+    private Collection $productPrices;
+
     // To track price changes
     private ?string $originalPrice = null;
 
@@ -70,6 +77,7 @@ class Product
     {
         $this->stockBatches = new ArrayCollection();
         $this->priceHistories = new ArrayCollection();
+        $this->productPrices = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -240,11 +248,50 @@ class Product
         return empty($batches) ? null : (float) $batches[0]->getTargetSellingPrice();
     }
 
+
     #[Groups(['stock:read'])]
-    public function getMinPrice(): ?float
+    public function getLastPurchasePrice(): ?float
     {
-        $batches = $this->getAvailableBatches();
-        return empty($batches) ? null : (float) $batches[0]->getMinSellingPrice();
+        if ($this->stockBatches->isEmpty()) {
+            return null;
+        }
+
+        $batches = $this->stockBatches->toArray();
+        usort($batches, function ($a, $b) {
+            return $b->getPurchaseDate() <=> $a->getPurchaseDate();
+        });
+
+        return (float) $batches[0]->getPurchasePrice();
+    }
+
+    /**
+     * @return Collection<int, ProductPrice>
+     */
+    public function getProductPrices(): Collection
+    {
+        return $this->productPrices;
+    }
+
+    public function addProductPrice(ProductPrice $productPrice): self
+    {
+        if (!$this->productPrices->contains($productPrice)) {
+            $this->productPrices->add($productPrice);
+            $productPrice->setProduct($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProductPrice(ProductPrice $productPrice): self
+    {
+        if ($this->productPrices->removeElement($productPrice)) {
+            // set the owning side to null (unless already changed)
+            if ($productPrice->getProduct() === $this) {
+                $productPrice->setProduct(null);
+            }
+        }
+
+        return $this;
     }
 
     private function getAvailableBatches(): array

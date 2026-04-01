@@ -18,6 +18,11 @@ class StockArrival
     #[Groups(['stock_arrival:read', 'stock_arrival:write', 'stock:read'])]
     private ?int $id = null;
 
+    #[ORM\Column(length: 255, unique: true)]
+    #[Groups(['stock_arrival:read', 'stock_arrival:write', 'stock:read'])]
+    private ?string $reference = null;
+
+
     #[ORM\ManyToOne(targetEntity: Supplier::class, inversedBy: 'stockArrivals')]
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
     private ?Supplier $supplier = null;

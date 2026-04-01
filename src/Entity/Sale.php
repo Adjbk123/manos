@@ -56,6 +56,11 @@ class Sale
     #[Groups(['sale:read', 'sale:write'])]
     private Collection $saleItems;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
+    private ?SaleZone $saleZone = null;
+
     public function __construct()
     {
         $this->saleItems = new ArrayCollection();
@@ -190,6 +195,17 @@ class Sale
             }
         }
 
+        return $this;
+    }
+
+    public function getSaleZone(): ?SaleZone
+    {
+        return $this->saleZone;
+    }
+
+    public function setSaleZone(?SaleZone $saleZone): self
+    {
+        $this->saleZone = $saleZone;
         return $this;
     }
 

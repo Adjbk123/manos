@@ -66,7 +66,7 @@
                 </td>
                 <td>
                     <div class="kpi-label">Fournisseur</div>
-                    <div class="kpi-value">{{ arrival.supplier|default('Non spécifié') }}</div>
+                    <div class="kpi-value">{{ arrival.supplier.name|default('Non spécifié') }}</div>
                 </td>
                 <td>
                     <div class="kpi-label">Date Arrivée</div>
@@ -83,10 +83,9 @@
     <table class="main-table">
         <thead>
             <tr>
-                <th style="width: 35%;">Désignation Produit</th>
+                <th style="width: 45%;">Désignation Produit</th>
                 <th class="text-center">Quantité</th>
                 <th class="text-right">P.A. Unit</th>
-                <th class="text-right">Vente Min</th>
                 <th class="text-right">Vente Cible</th>
             </tr>
         </thead>
@@ -99,7 +98,6 @@
                 </td>
                 <td class="text-center font-bold">{{ batch.quantityInitial }}</td>
                 <td class="text-right">{{ batch.purchasePrice|number_format(0, '.', ' ') }} F</td>
-                <td class="text-right" style="color: #f39c12;">{{ batch.minSellingPrice|number_format(0, '.', ' ') }} F</td>
                 <td class="text-right" style="color: #2ecc71;">{{ batch.targetSellingPrice|number_format(0, '.', ' ') }} F</td>
             </tr>
             {% endfor %}

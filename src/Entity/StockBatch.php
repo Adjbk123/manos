@@ -28,10 +28,6 @@ class StockBatch
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
     #[Groups(['stock:read', 'stock_batch:read', 'stock_batch:write', 'stock_arrival:read'])]
-    private ?string $minSellingPrice = null;
-
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
-    #[Groups(['stock:read', 'stock_batch:read', 'stock_batch:write', 'stock_arrival:read'])]
     private ?string $targetSellingPrice = null;
 
     #[ORM\Column]
@@ -79,18 +75,6 @@ class StockBatch
     public function setPurchasePrice(string $purchasePrice): self
     {
         $this->purchasePrice = $purchasePrice;
-
-        return $this;
-    }
-
-    public function getMinSellingPrice(): ?string
-    {
-        return $this->minSellingPrice;
-    }
-
-    public function setMinSellingPrice(string $minSellingPrice): self
-    {
-        $this->minSellingPrice = $minSellingPrice;
 
         return $this;
     }

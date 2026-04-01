@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Sale;
 use App\Entity\SaleItem;
 use App\Entity\StockClient;
+use App\Entity\SaleZone;
 use App\Entity\CreditPayment;
 use App\Repository\ProductRepository;
 use App\Repository\SaleRepository;
@@ -14,6 +15,7 @@ use App\Repository\UserRepository;
 use App\Repository\SupplierRepository;
 use App\Repository\ShopCashMovementRepository;
 use App\Repository\StockAdjustmentRepository;
+use App\Repository\SaleZoneRepository;
 use App\Service\ShopCashService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,9 +27,10 @@ use Symfony\Component\Routing\Annotation\Route;
 class PosController extends AbstractController
 {
     #[Route('/products', name: 'api_pos_products_list', methods: ['GET'])]
-    public function listProducts(ProductRepository $productRepository): JsonResponse
+    public function listProducts(Request $request, ProductRepository $productRepository): JsonResponse
     {
-        $products = $productRepository->findBy([], ['name' => 'ASC']);
+        $filters = $request->query->all();
+        $products = $productRepository->findByFilters($filters);
         return $this->json($products, 200, [], ['groups' => 'stock:read']);
     }
 
@@ -77,7 +80,8 @@ class PosController extends AbstractController
         StockClientRepository $clientRepository,
         ProductRepository $productRepository,
         UserRepository $userRepository,
-        ShopCashService $cashService
+        ShopCashService $cashService,
+        SaleZoneRepository $zoneRepository
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
@@ -113,6 +117,14 @@ class PosController extends AbstractController
             $sale->setPaymentMethod($data['paymentMethod']); // CASH, MOMO
             $sale->setPaymentStatus($data['paymentStatus']); // PAID, PARTIAL, UNPAID
 
+            // Sale Zone
+            if (isset($data['saleZoneId'])) {
+                $zone = $zoneRepository->find($data['saleZoneId']);
+                if ($zone) {
+                    $sale->setSaleZone($zone);
+                }
+            }
+
             $totalAmount = 0;
 
             foreach ($data['items'] as $itemData) {
@@ -123,6 +135,8 @@ class PosController extends AbstractController
                 $productId = $itemData['productId'];
                 $quantityRequested = $itemData['quantity'];
                 $unitSellingPrice = $itemData['unitPrice'];
+                $itemZoneId = $itemData['saleZoneId'] ?? null;
+                $itemZone = $itemZoneId ? $zoneRepository->find($itemZoneId) : null;
 
                 $product = $productRepository->find($productId);
 
@@ -151,6 +165,7 @@ class PosController extends AbstractController
                     $saleItem->setQuantity($take);
                     $saleItem->setUnitSellingPrice($unitSellingPrice); // Provided price
                     $saleItem->setUnitPurchasePrice($batch->getPurchasePrice()); // Snapshot cost
+                    $saleItem->setSaleZone($itemZone); // Per item zone
 
                     // Calculate profit: (Selling - Purchase) * Qty
                     $profit = ($unitSellingPrice - $batch->getPurchasePrice()) * $take;
@@ -245,6 +260,9 @@ class PosController extends AbstractController
         }
         return $this->json($sale, 200, [], [
             'groups' => ['sale:read', 'stock:read'],
+            'circular_reference_handler' => function ($object) {
+                return $object->getId();
+            },
             'enable_max_depth' => true,
         ]);
     }
@@ -375,6 +393,9 @@ class PosController extends AbstractController
             'saleItems' => $saleItems,
         ], 200, [], [
             'groups' => ['product:read', 'stock:read', 'product_detail:read'],
+            'circular_reference_handler' => function ($object) {
+                return $object->getId();
+            },
             'enable_max_depth' => true,
         ]);
     }
