@@ -40,7 +40,7 @@ class Product
     #[Groups(['product:read', 'stock:read'])]
     private ?int $stockQuantity = 0;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4, nullable: true)]
     #[Groups(['product:read', 'product:write', 'stock:read', 'sale:read'])]
     private ?string $sellingPrice = null;
 

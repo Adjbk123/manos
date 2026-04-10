@@ -232,6 +232,7 @@ class PosController extends AbstractController
                     $sale->getId(),
                     $user
                 );
+                $em->flush();
             }
 
             $em->commit();

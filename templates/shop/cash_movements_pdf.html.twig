@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { margin: 30px; }
+        body { font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
+        
+        .page-header { width: 100%; margin-bottom: 20px; }
+        .main-title { font-size: 32pt; font-weight: 900; color: #000; letter-spacing: -1px; margin: 0; padding: 0; line-height: 1; text-transform: uppercase; }
+        
+        .logo-box { width: 140px; height: 100px; position: absolute; top: 0; right: 0; text-align: center; }
+        
+        .info-box { width: 500px; margin-top: 10px; border-collapse: collapse; }
+        .info-box td { border: 1px solid #ccc; padding: 5px 10px; background-color: #f7f7f7; height: 25px; }
+        .info-label { font-size: 9pt; font-weight: bold; width: 140px; text-transform: uppercase; color: #2c3e50; }
+        .info-value { font-size: 10pt; font-weight: bold; }
+        
+        .main-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+        .main-table th { background-color: #2c3e50; color: #ffffff; padding: 10px; text-align: left; font-size: 8pt; font-weight: bold; text-transform: uppercase; border: 1px solid #222; }
+        .main-table td { padding: 10px; border: 1px solid #ccc; font-size: 9pt; height: 30px; }
+        .main-table tr:nth-child(even) { background-color: #fcfcfc; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-black { font-weight: 900; }
+        
+        .amount-in { color: #27ae60; font-weight: bold; }
+        .amount-out { color: #c0392b; font-weight: bold; }
+        
+        .summary-banner { margin-top: 20px; float: right; width: 350px; background-color: #2c3e50; color: white; padding: 20px; border-radius: 4px; }
+        .summary-label { font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
+        .summary-value { font-size: 24pt; font-weight: bold; text-align: right; margin-top: 5px; }
+        
+        .footer-text { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7pt; color: #999; }
+        .badge { display: inline-block; padding: 2px 5px; background-color: #eee; border-radius: 3px; font-size: 7pt; color: #666; font-weight: bold; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="logo-box">
+        {% if logo_path %}
+            <img src="{{ logo_path }}" style="width: 100%; height: auto;">
+        {% endif %}
+    </div>
+    
+    <div class="page-header">
+        <h1 class="main-title">JOURNAL DE CAISE</h1>
+        
+        <table class="info-box">
+            <tr>
+                <td class="info-label">PRODUIT LE :</td>
+                <td class="info-value">{{ date|date('d / m / Y à H:i') }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">BOUTIQUE :</td>
+                <td class="info-value">MANOS PHONE - CENTRALE</td>
+            </tr>
+            <tr>
+                <td class="info-label">PÉRIODE :</td>
+                <td class="info-value">HISTORIQUE RÉCENT</td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">DATE / HEURE</th>
+                <th style="width: 45%;">LIBELLÉ / OPÉRATION</th>
+                <th style="width: 15%;" class="text-center">TYPE</th>
+                <th style="width: 25%;" class="text-right">MONTANT (F CFA)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movements %}
+            <tr>
+                <td>
+                    <div class="font-black">{{ m.date|date('d/m/Y') }}</div>
+                    <div style="font-size: 8pt; color: #777;">{{ m.date|date('H:i') }}</div>
+                </td>
+                <td>
+                    <div class="font-black">{{ m.label }}</div>
+                    <div class="badge">{{ m.source }}</div>
+                </td>
+                <td class="text-center">
+                    {% if m.type == 'IN' %}
+                        <span class="amount-in">ENTRÉE</span>
+                    {% else %}
+                        <span class="amount-out">SORTIE</span>
+                    {% endif %}
+                </td>
+                <td class="text-right font-black">
+                    <span class="{{ m.type == 'IN' ? 'amount-in' : 'amount-out' }}">
+                        {{ m.type == 'IN' ? '+' : '-' }}{{ m.amount|number_format(0, '.', ' ') }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary-banner">
+        <div class="summary-label">SOLDE ACTUEL EN CAISSE</div>
+        <div class="summary-value">{{ balance|number_format(0, '.', ' ') }} F</div>
+    </div>
+
+    <div class="footer-text">
+        Document confidentiel MANOS PHONE - Généré automatiquement le {{ "now"|date('d/m/Y') }}.
+    </div>
+</body>
+</html>

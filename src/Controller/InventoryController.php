@@ -15,6 +15,8 @@ use App\Repository\SupplierRepository;
 use App\Service\ShopCashService;
 use App\Service\PdfService;
 use Doctrine\ORM\EntityManagerInterface;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -194,9 +196,19 @@ class InventoryController extends AbstractController
             $totalItems += $batch->getQuantityInitial();
         }
 
+        // Convert logo to base64
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/logo-manos-phone.png';
+        $logoBase64 = '';
+        if (file_exists($logoPath)) {
+            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+            $data = file_get_contents($logoPath);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
         $pdfBinary = $pdfService->generatePdf('inventory/arrival_pdf.html.twig', [
             'arrival' => $arrival,
             'totalItems' => $totalItems,
+            'logo_path' => $logoBase64
         ]);
 
         return new Response($pdfBinary, 200, [
@@ -327,21 +339,22 @@ class InventoryController extends AbstractController
             $em->persist($arrival->getSupplier());
         }
 
+        $em->persist($arrival);
+        $em->flush();
+
         // Record Shop Cash Movement only if authorized by deductFromCash flag
         $deductFromCash = (bool)($data['deductFromCash'] ?? true);
         if ($paidAmount > 0 && $deductFromCash) {
             $cashService->addMovement(
                 'OUT',
                 $paidAmount,
-                "Acompte arrivage " . $arrival->getReference() . ($arrival->getSupplier() ? " - " . $arrival->getSupplier()->getName() : ""),
+                "Acompte arrivage #" . $arrival->getReference() . ($arrival->getSupplier() ? " - " . $arrival->getSupplier()->getName() : ""),
                 'ARRIVAL',
                 $arrival->getId(),
                 $this->getUser()
             );
+            $em->flush();
         }
-
-        $em->persist($arrival);
-        $em->flush();
 
         return $this->json($arrival, 201, [], ['groups' => 'stock_arrival:read']);
     }
@@ -407,5 +420,54 @@ class InventoryController extends AbstractController
         $em->flush();
 
         return $this->json(['message' => 'Catégorie supprimée'], 200);
+    }
+
+    #[Route('/inventory/print', name: 'api_inventory_print', methods: ['GET'])]
+    public function printInventory(EntityManagerInterface $em): Response
+    {
+        $products = $em->getRepository(Product::class)->findBy(['isActive' => true], ['name' => 'ASC']);
+        
+        $totalStockValue = 0;
+        $totalItems = 0;
+        
+        foreach ($products as $product) {
+            $lastPurchasePrice = $product->getLastPurchasePrice() ?: 0;
+            $totalStockValue += ($product->getStockQuantity() * $lastPurchasePrice);
+            $totalItems += $product->getStockQuantity();
+        }
+
+        $options = new Options();
+        $options->set('defaultFont', 'Helvetica');
+        $dompdf = new Dompdf($options);
+        
+        // Convert logo to base64 to ensure it displays in PDF
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/logo-manos-phone.png';
+        $logoBase64 = '';
+        if (file_exists($logoPath)) {
+            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+            $data = file_get_contents($logoPath);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
+        $html = $this->renderView('inventory/inventory_pdf.html.twig', [
+            'products' => $products,
+            'totalStockValue' => $totalStockValue,
+            'totalItems' => $totalItems,
+            'date' => new \DateTime(),
+            'logo_path' => $logoBase64
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return new Response(
+            $dompdf->output(),
+            200,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="inventaire_stock.pdf"'
+            ]
+        );
     }
 }

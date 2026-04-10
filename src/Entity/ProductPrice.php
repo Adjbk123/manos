@@ -27,7 +27,7 @@ class ProductPrice
     #[Groups(['product:read', 'product_price:read', 'stock:read', 'stock_arrival:read'])]
     private ?SaleZone $saleZone = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4)]
     #[Groups(['product:read', 'product_price:read', 'sale_zone:read', 'stock:read', 'stock_arrival:read'])]
     private ?string $price = null;
 

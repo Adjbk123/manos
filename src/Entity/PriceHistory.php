@@ -17,7 +17,7 @@ class PriceHistory
     #[Groups(['price_history:read', 'product:read'])]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4)]
     #[Groups(['price_history:read', 'product:read'])]
     private ?string $price = null;
 

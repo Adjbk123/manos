@@ -31,15 +31,15 @@ class SaleItem
     #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
     private ?int $quantity = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4)]
     #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
     private ?string $unitSellingPrice = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4)]
     #[Groups(['sale:read', 'product_detail:read'])]
     private ?string $unitPurchasePrice = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4, nullable: true)]
     #[Groups(['sale:read', 'product_detail:read'])]
     private ?string $profit = null;
 

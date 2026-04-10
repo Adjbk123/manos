@@ -22,11 +22,11 @@ class StockBatch
     #[Groups(['stock_batch:read', 'stock_arrival:read', 'sale:read'])]
     private ?Product $product = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4)]
     #[Groups(['stock:read', 'stock_batch:read', 'stock_batch:write', 'stock_arrival:read'])]
     private ?string $purchasePrice = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 14, scale: 4)]
     #[Groups(['stock:read', 'stock_batch:read', 'stock_batch:write', 'stock_arrival:read'])]
     private ?string $targetSellingPrice = null;
 

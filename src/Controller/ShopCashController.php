@@ -43,4 +43,22 @@ class ShopCashController extends AbstractController
 
         return $this->json($movement, 201, [], ['groups' => 'shop_cash:read']);
     }
+
+    #[Route('/print', name: 'api_shop_cash_print', methods: ['GET'])]
+    public function printMovements(ShopCashMovementRepository $repository, \App\Service\PdfService $pdfService): \Symfony\Component\HttpFoundation\Response
+    {
+        $movements = $repository->findBy([], ['date' => 'DESC']);
+        $balance = $repository->getBalance();
+
+        $pdfBinary = $pdfService->generatePdf('shop/cash_movements_pdf.html.twig', [
+            'movements' => $movements,
+            'balance' => $balance,
+            'date' => new \DateTime()
+        ]);
+
+        return new \Symfony\Component\HttpFoundation\Response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="mouvements_caisse_' . date('Y-m-d') . '.pdf"',
+        ]);
+    }
 }

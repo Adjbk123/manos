@@ -40,9 +40,19 @@ class ReportController extends AbstractController
         $dateStr = $request->query->get('date', date('Y-m-d'));
         $data = $this->getDailyReportData($dateStr, $accountRepository, $movementRepository);
 
+        // Convert logo to base64
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/logo-manos-phone.png';
+        $logoBase64 = '';
+        if (file_exists($logoPath)) {
+            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+            $data = file_get_contents($logoPath);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
         $pdfBinary = $pdfService->generatePdf('reports/daily_pdf.html.twig', [
             'reportData' => $data['reportData'],
-            'date' => $dateStr
+            'date' => $dateStr,
+            'logo_path' => $logoBase64
         ]);
 
         return new \Symfony\Component\HttpFoundation\Response($pdfBinary, 200, [
