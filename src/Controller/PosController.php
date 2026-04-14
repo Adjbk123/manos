@@ -89,7 +89,11 @@ class PosController extends AbstractController
         $em->beginTransaction();
         try {
             $sale = new Sale();
-            $sale->setDate(new \DateTime());
+            if (isset($data['date']) && !empty($data['date'])) {
+                $sale->setDate(new \DateTime($data['date']));
+            } else {
+                $sale->setDate(new \DateTime());
+            }
 
             // Link User (assuming passed in body or extracted from token in real app)
             // For now, we might need to get the logged in user. 
