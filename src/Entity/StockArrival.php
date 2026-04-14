@@ -27,9 +27,9 @@ class StockArrival
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
     private ?Supplier $supplier = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
-    private ?string $paidAmount = '0.00';
+    private ?string $paidAmount = '0.0000';
 
     #[ORM\Column(length: 20)]
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
@@ -39,7 +39,7 @@ class StockArrival
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
     private ?\DateTimeInterface $arrivalDate = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 4)]
     #[Groups(['stock_arrival:read', 'stock_arrival:write'])]
     private ?string $totalAmount = null;
 

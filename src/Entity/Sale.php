@@ -31,11 +31,11 @@ class Sale
     #[Groups(['sale:read', 'sale:write', 'product_detail:read'])]
     private ?string $clientName = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 4)]
     #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?string $totalAmount = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 4)]
     #[Groups(['sale:read', 'sale:write', 'stock_client:read', 'product_detail:read'])]
     private ?string $paidAmount = null;
 
