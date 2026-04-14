@@ -471,4 +471,26 @@ class InventoryController extends AbstractController
             ]
         );
     }
+
+    #[Route('/products/{id}', name: 'api_stock_products_delete', methods: ['DELETE'])]
+    public function deleteProduct(int $id, ProductRepository $productRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $product = $productRepository->find($id);
+        if (!$product) {
+            return $this->json(['error' => 'Produit introuvable'], 404);
+        }
+
+        $em->remove($product);
+        try {
+            $em->flush();
+        } catch (\Exception $e) {
+            // Probably integrity constraint (sales exist)
+            // Just deactivate it instead
+            $product->setIsActive(false);
+            $em->flush();
+            return $this->json(['message' => 'Produit désactivé car lié à des ventes/stocks'], 200);
+        }
+
+        return $this->json(['message' => 'Produit supprimé'], 200);
+    }
 }
