@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { margin: 30px; }
+        body { font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
+        
+        .page-header { width: 100%; margin-bottom: 20px; }
+        .main-title { font-size: 32pt; font-weight: 900; color: #000; letter-spacing: -1px; margin: 0; padding: 0; line-height: 1; text-transform: uppercase; }
+        
+        .logo-box { width: 140px; height: 100px; position: absolute; top: 0; right: 0; text-align: center; }
+        
+        .info-box { width: 500px; margin-top: 10px; border-collapse: collapse; }
+        .info-box td { border: 1px solid #ccc; padding: 5px 10px; background-color: #f0f4f8; height: 25px; }
+        .info-label { font-size: 9pt; font-weight: bold; width: 140px; text-transform: uppercase; color: #2c3e50; }
+        .info-value { font-size: 10pt; font-weight: bold; }
+        
+        .main-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+        .main-table th { background-color: #2c3e50; color: #ffffff; padding: 10px; text-align: left; font-size: 8pt; font-weight: bold; text-transform: uppercase; border: 1px solid #222; }
+        .main-table td { padding: 10px; border: 1px solid #ccc; font-size: 9pt; height: 30px; }
+        .main-table tr:nth-child(even) { background-color: #f9f9f9; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-black { font-weight: 900; }
+        
+        .summary-banner { margin-top: 20px; float: right; width: 350px; background-color: #2c3e50; color: white; padding: 20px; border-radius: 4px; }
+        .summary-line { overflow: hidden; margin-bottom: 5px; }
+        .summary-label { float: left; font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
+        .summary-value { float: right; font-size: 14pt; font-weight: bold; }
+        .total-line { border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px; }
+        .total-value { font-size: 22pt; }
+        
+        .footer-text { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7pt; color: #999; }
+        .text-primary { color: #2c3e50; }
+    </style>
+</head>
+<body>
+    <div class="logo-box">
+        {% if logo_path %}
+            <img src="{{ logo_path }}" style="width: 100%; height: auto;">
+        {% else %}
+            <div style="border: 1px solid #ddd; height: 100px; line-height: 100px; color: #999;">MANOS PHONE</div>
+        {% endif %}
+    </div>
+    
+    <div class="page-header">
+        <h1 class="main-title">FACTURE</h1>
+        
+        <table class="info-box">
+            <tr>
+                <td class="info-label">RÉFÉRENCE :</td>
+                <td class="info-value text-primary">#{{ sale.reference|default('VEN-' ~ sale.id) }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">CLIENT :</td>
+                <td class="info-value">{{ sale.stockClient.name|default(sale.clientName|default('Client de passage')) }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">DATE VENTE :</td>
+                <td class="info-value">{{ sale.date|date('d / m / Y à H:i') }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">RÈGLEMENT :</td>
+                <td class="info-value">
+                    {% set method = sale.paymentMethod|default('CASH') %}
+                    {{ method == 'CASH' ? 'ESPÈCES' : (method == 'MOMO' ? 'MOBILE MONEY' : method) }}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th style="width: 45%;">DÉSIGNATION / ARTICLE</th>
+                <th style="width: 15%;" class="text-center">QUANTITÉ</th>
+                <th style="width: 20%;" class="text-right">P.U. VENTE</th>
+                <th style="width: 20%;" class="text-right">TOTAL LIGNE</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in sale.saleItems %}
+            <tr>
+                <td>
+                    <div class="font-black">{{ item.stockBatch.product.name }}</div>
+                </td>
+                <td class="text-center font-black">{{ item.quantity }}</td>
+                <td class="text-right">{{ item.unitSellingPrice|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right font-black">
+                    {{ (item.quantity * item.unitSellingPrice)|number_format(0, '.', ' ') }} F
+                </td>
+            </tr>
+            {% endfor %}
+            
+            {% if sale.saleItems|length < 8 %}
+                {% for i in range(sale.saleItems|length + 1, 8) %}
+                <tr>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div class="summary-banner">
+        <div class="summary-line text-right">
+            <div class="summary-label">TOTAL NET À PAYER</div>
+            <div class="summary-value">{{ sale.totalAmount|number_format(0, '.', ' ') }} F</div>
+        </div>
+        <div class="summary-line text-right">
+            <div class="summary-label">MONTANT REÇU</div>
+            <div class="summary-value">{{ sale.paidAmount|number_format(0, '.', ' ') }} F</div>
+        </div>
+        <div class="summary-line total-line text-right">
+            {% set balance = sale.totalAmount - sale.paidAmount %}
+            {% if balance > 0 %}
+                <div class="summary-label">RESTE À PAYER (DETTE)</div>
+                <div class="summary-value total-value">{{ balance|number_format(0, '.', ' ') }} F</div>
+            {% else %}
+                <div class="summary-label">MONNAIE RENDUE</div>
+                <div class="summary-value total-value">{{ (sale.paidAmount - sale.totalAmount)|number_format(0, '.', ' ') }} F</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="footer-text">
+        Merci de votre confiance ! - Facture générée le {{ "now"|date('d/m/Y à H:i') }}.
+    </div>
+</body>
+</html>

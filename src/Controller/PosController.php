@@ -246,9 +246,10 @@ class PosController extends AbstractController
     }
 
     #[Route('/sales', name: 'api_pos_sales_list', methods: ['GET'])]
-    public function listSales(SaleRepository $saleRepository): JsonResponse
+    public function listSales(Request $request, SaleRepository $saleRepository): JsonResponse
     {
-        $sales = $saleRepository->findBy([], ['date' => 'DESC']);
+        $filters = $request->query->all();
+        $sales = $saleRepository->findByFilters($filters);
         return $this->json($sales, 200, [], ['groups' => 'sale:read']);
     }
 
@@ -265,6 +266,29 @@ class PosController extends AbstractController
                 return $object->getId();
             },
             'enable_max_depth' => true,
+        ]);
+    }
+
+    #[Route('/sales/{id}/pdf', name: 'api_pos_sale_pdf', methods: ['GET'])]
+    public function generateSalePdf(Sale $sale, \App\Service\PdfService $pdfService): \Symfony\Component\HttpFoundation\Response
+    {
+        // Convert logo to base64
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/logo-manos-phone.png';
+        $logoBase64 = '';
+        if (file_exists($logoPath)) {
+            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+            $data = file_get_contents($logoPath);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
+        $pdfBinary = $pdfService->generatePdf('pos/sale_pdf.html.twig', [
+            'sale' => $sale,
+            'logo_path' => $logoBase64
+        ]);
+
+        return new \Symfony\Component\HttpFoundation\Response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="facture_' . ($sale->getReference() ?: $sale->getId()) . '.pdf"',
         ]);
     }
 

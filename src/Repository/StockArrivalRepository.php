@@ -50,4 +50,29 @@ class StockArrivalRepository extends ServiceEntityRepository
             $this->getEntityManager()->flush();
         }
     }
+
+    public function findByFilters(array $filters): array
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->leftJoin('a.supplier', 's')
+            ->addSelect('s')
+            ->orderBy('a.arrivalDate', 'DESC');
+
+        if (!empty($filters['search'])) {
+            $qb->andWhere('a.reference LIKE :search OR s.name LIKE :search')
+               ->setParameter('search', '%' . $filters['search'] . '%');
+        }
+
+        if (!empty($filters['start'])) {
+            $qb->andWhere('a.arrivalDate >= :start')
+               ->setParameter('start', new \DateTime($filters['start'] . ' 00:00:00'));
+        }
+
+        if (!empty($filters['end'])) {
+            $qb->andWhere('a.arrivalDate <= :end')
+               ->setParameter('end', new \DateTime($filters['end'] . ' 23:59:59'));
+        }
+
+        return $qb->getQuery()->getResult();
+    }
 }

@@ -176,9 +176,10 @@ class InventoryController extends AbstractController
     }
 
     #[Route('/arrivals', name: 'api_stock_arrival_list', methods: ['GET'])]
-    public function listArrivals(StockArrivalRepository $arrivalRepository): JsonResponse
+    public function listArrivals(Request $request, StockArrivalRepository $arrivalRepository): JsonResponse
     {
-        $arrivals = $arrivalRepository->findBy([], ['arrivalDate' => 'DESC']);
+        $filters = $request->query->all();
+        $arrivals = $arrivalRepository->findByFilters($filters);
         return $this->json($arrivals, 200, [], ['groups' => 'stock_arrival:read']);
     }
 
