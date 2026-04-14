@@ -6,42 +6,44 @@
         @page { margin: 30px; }
         body { font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
         
-        .page-header { width: 100%; margin-bottom: 20px; }
+        .page-header { width: 100%; margin-bottom: 20px; position: relative; }
         .main-title { font-size: 32pt; font-weight: 900; color: #000; letter-spacing: -1px; margin: 0; padding: 0; line-height: 1; text-transform: uppercase; }
         
-        .logo-box { width: 140px; height: 100px; border: 1px solid #ddd; position: absolute; top: 0; right: 0; text-align: center; line-height: 100px; color: #999; font-weight: bold; font-size: 14pt; }
+        .logo-box { width: 140px; height: 100px; position: absolute; top: 0; right: 0; text-align: right; }
         
-        .info-box { width: 500px; margin-top: 10px; border-collapse: collapse; }
+        .info-box { width: 450px; margin-top: 10px; border-collapse: collapse; }
         .info-box td { border: 1px solid #ccc; padding: 5px 10px; background-color: #f0f4f8; height: 25px; }
-        .info-label { font-size: 9pt; font-weight: bold; width: 140px; text-transform: uppercase; color: #2c3e50; }
+        .info-label { font-size: 8pt; font-weight: bold; width: 130px; text-transform: uppercase; color: #2c3e50; }
         .info-value { font-size: 10pt; font-weight: bold; }
         
         .main-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
         .main-table th { background-color: #2c3e50; color: #ffffff; padding: 10px; text-align: left; font-size: 8pt; font-weight: bold; text-transform: uppercase; border: 1px solid #222; }
-        .main-table td { padding: 10px; border: 1px solid #ccc; font-size: 9pt; height: 30px; }
+        .main-table td { padding: 10px; border: 1px solid #ccc; font-size: 9pt; }
         .main-table tr:nth-child(even) { background-color: #f9f9f9; }
         
         .text-right { text-align: right; }
         .text-center { text-align: center; }
-        .font-black { font-weight: 900; }
+        .font-black { font-weight: bold; }
         
-        .summary-banner { margin-top: 20px; float: right; width: 350px; background-color: #2c3e50; color: white; padding: 20px; border-radius: 4px; }
-        .summary-line { overflow: hidden; margin-bottom: 5px; }
-        .summary-label { float: left; font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
-        .summary-value { float: right; font-size: 14pt; font-weight: bold; }
-        .total-line { border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px; }
-        .total-value { font-size: 22pt; }
+        .summary-container { margin-top: 20px; width: 100%; }
+        .summary-table { width: 350px; float: right; border-collapse: collapse; background-color: #2c3e50; color: white; }
+        .summary-table td { padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .summary-label { font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
+        .summary-value { font-size: 12pt; font-weight: bold; text-align: right; }
+        .total-row td { background-color: #1a252f; border-top: 2px solid #fff; }
+        .total-value { font-size: 18pt; }
         
+        .clear { clear: both; }
         .footer-text { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7pt; color: #999; }
-        .tag { display: inline-block; padding: 3px 8px; background-color: #2c3e50; color: white; border-radius: 3px; font-size: 8pt; font-weight: bold; }
+        .text-primary { color: #2c3e50; }
     </style>
 </head>
 <body>
-    <div class="logo-box" style="border: none;">
+    <div class="logo-box">
         {% if logo_path %}
-            <img src="{{ logo_path }}" style="width: 100%; height: auto;">
+            <img src="{{ logo_path }}" style="max-width: 140px; max-height: 100px;">
         {% else %}
-            LOGO
+            <div style="border: 1px solid #ddd; height: 100px; line-height: 100px; text-align: center; color: #999;">LOGO</div>
         {% endif %}
     </div>
     
@@ -59,16 +61,18 @@
             </tr>
             <tr>
                 <td class="info-label">DATE ARRIVÉE :</td>
-                <td class="info-value">{{ arrival.arrivalDate|date('d / m / Y') }}</td>
+                <td class="info-value">{{ arrival.arrivalDate|date('d/m/Y') }}</td>
             </tr>
             <tr>
                 <td class="info-label">STATUT PAIEMENT :</td>
                 <td class="info-value">
-                    {% set debt = arrival.totalAmount - arrival.paidAmount %}
-                    {% if debt <= 0 %}
+                    {% set total = arrival.totalAmount|default(0) %}
+                    {% set paid = arrival.paidAmount|default(0) %}
+                    {% set rest = total - paid %}
+                    {% if rest <= 0 %}
                         PAYÉ
-                    {% elseif arrival.paidAmount > 0 %}
-                        PARTIEL (Reste: {{ debt|number_format(0, '.', ' ') }} F)
+                    {% elseif paid > 0 %}
+                        PARTIEL (Reste: {{ rest|number_format(0, '.', ' ') }} F)
                     {% else %}
                         NON PAYÉ (CRÉDIT)
                     {% endif %}
@@ -83,53 +87,45 @@
                 <th style="width: 45%;">DÉSIGNATION / ARTICLE</th>
                 <th style="width: 15%;" class="text-center">QUANTITÉ</th>
                 <th style="width: 20%;" class="text-right">P.U. ACHAT</th>
-                <th style="width: 20%;" class="text-right">MONTANT LIGNE</th>
+                <th style="width: 20%;" class="text-right">TOTAL LIGNE</th>
             </tr>
         </thead>
         <tbody>
             {% for batch in arrival.stockBatches %}
             <tr>
                 <td>
-                    <div class="font-black">{{ batch.product.name }}</div>
+                    <div class="font-black">{{ batch.product.name|default('Produit supprimé') }}</div>
                 </td>
                 <td class="text-center font-black">{{ batch.quantityInitial }}</td>
-                <td class="text-right">{{ batch.purchasePrice|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right">{{ (batch.purchasePrice|default(0))|number_format(0, '.', ' ') }} F</td>
                 <td class="text-right font-black">
-                    {{ (batch.quantityInitial * batch.purchasePrice)|number_format(0, '.', ' ') }} F
+                    {{ (batch.quantityInitial * batch.purchasePrice|default(0))|number_format(0, '.', ' ') }} F
                 </td>
             </tr>
             {% endfor %}
-            
-            {% if arrival.stockBatches|length < 8 %}
-                {% for i in range(arrival.stockBatches|length + 1, 8) %}
-                <tr>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                </tr>
-                {% endfor %}
-            {% endif %}
         </tbody>
     </table>
 
-    <div class="summary-banner">
-        <div class="summary-line text-right">
-            <div class="summary-label">TOTAL BRUT</div>
-            <div class="summary-value">{{ arrival.totalAmount|number_format(0, '.', ' ') }} F</div>
-        </div>
-        <div class="summary-line text-right">
-            <div class="summary-label">MONTANT VERSÉ</div>
-            <div class="summary-value">{{ arrival.paidAmount|number_format(0, '.', ' ') }} F</div>
-        </div>
-        <div class="summary-line total-line text-right">
-            <div class="summary-label">RESTE À PAYER (DETTE)</div>
-            <div class="summary-value total-value">{{ (arrival.totalAmount - arrival.paidAmount)|number_format(0, '.', ' ') }} F</div>
-        </div>
+    <div class="summary-container">
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">TOTAL BRUT ACHAT</td>
+                <td class="summary-value">{{ (arrival.totalAmount|default(0))|number_format(0, '.', ' ') }} F</td>
+            </tr>
+            <tr>
+                <td class="summary-label">MONTANT VERSÉ</td>
+                <td class="summary-value">{{ (arrival.paidAmount|default(0))|number_format(0, '.', ' ') }} F</td>
+            </tr>
+            <tr class="total-row">
+                <td class="summary-label">RESTE À PAYER (DETTE)</td>
+                <td class="summary-value total-value">{{ (arrival.totalAmount|default(0) - arrival.paidAmount|default(0))|number_format(0, '.', ' ') }} F</td>
+            </tr>
+        </table>
     </div>
+    <div class="clear"></div>
 
     <div class="footer-text">
-        Société MANOS PHONE - Document de réception marchandise généré le {{ "now"|date('d/m/Y à H:i') }}.
+        MANOS PHONE - Document de réception marchandise généré le {{ "now"|date('d/m/Y à H:i') }}.
     </div>
 </body>
 </html>

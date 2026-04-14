@@ -6,32 +6,34 @@
         @page { margin: 30px; }
         body { font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
         
-        .page-header { width: 100%; margin-bottom: 20px; }
+        .page-header { width: 100%; margin-bottom: 20px; position: relative; }
         .main-title { font-size: 32pt; font-weight: 900; color: #000; letter-spacing: -1px; margin: 0; padding: 0; line-height: 1; text-transform: uppercase; }
         
-        .logo-box { width: 140px; height: 100px; position: absolute; top: 0; right: 0; text-align: center; }
+        .logo-box { width: 140px; height: 100px; position: absolute; top: 0; right: 0; text-align: right; }
         
-        .info-box { width: 500px; margin-top: 10px; border-collapse: collapse; }
+        .info-box { width: 450px; margin-top: 10px; border-collapse: collapse; }
         .info-box td { border: 1px solid #ccc; padding: 5px 10px; background-color: #f0f4f8; height: 25px; }
-        .info-label { font-size: 9pt; font-weight: bold; width: 140px; text-transform: uppercase; color: #2c3e50; }
+        .info-label { font-size: 8pt; font-weight: bold; width: 130px; text-transform: uppercase; color: #2c3e50; }
         .info-value { font-size: 10pt; font-weight: bold; }
         
         .main-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
         .main-table th { background-color: #2c3e50; color: #ffffff; padding: 10px; text-align: left; font-size: 8pt; font-weight: bold; text-transform: uppercase; border: 1px solid #222; }
-        .main-table td { padding: 10px; border: 1px solid #ccc; font-size: 9pt; height: 30px; }
+        .main-table td { padding: 10px; border: 1px solid #ccc; font-size: 9pt; }
         .main-table tr:nth-child(even) { background-color: #f9f9f9; }
         
         .text-right { text-align: right; }
         .text-center { text-align: center; }
-        .font-black { font-weight: 900; }
+        .font-black { font-weight: bold; }
         
-        .summary-banner { margin-top: 20px; float: right; width: 350px; background-color: #2c3e50; color: white; padding: 20px; border-radius: 4px; }
-        .summary-line { overflow: hidden; margin-bottom: 5px; }
-        .summary-label { float: left; font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
-        .summary-value { float: right; font-size: 14pt; font-weight: bold; }
-        .total-line { border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px; }
-        .total-value { font-size: 22pt; }
+        .summary-container { margin-top: 20px; width: 100%; }
+        .summary-table { width: 350px; float: right; border-collapse: collapse; background-color: #2c3e50; color: white; }
+        .summary-table td { padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .summary-label { font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
+        .summary-value { font-size: 12pt; font-weight: bold; text-align: right; }
+        .total-row td { background-color: #1a252f; border-top: 2px solid #fff; }
+        .total-value { font-size: 18pt; }
         
+        .clear { clear: both; }
         .footer-text { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7pt; color: #999; }
         .text-primary { color: #2c3e50; }
     </style>
@@ -39,9 +41,9 @@
 <body>
     <div class="logo-box">
         {% if logo_path %}
-            <img src="{{ logo_path }}" style="width: 100%; height: auto;">
+            <img src="{{ logo_path }}" style="max-width: 140px; max-height: 100px;">
         {% else %}
-            <div style="border: 1px solid #ddd; height: 100px; line-height: 100px; color: #999;">MANOS PHONE</div>
+            <div style="border: 1px solid #ddd; height: 100px; line-height: 100px; text-align: center; color: #999;">MANOS PHONE</div>
         {% endif %}
     </div>
     
@@ -59,7 +61,7 @@
             </tr>
             <tr>
                 <td class="info-label">DATE VENTE :</td>
-                <td class="info-value">{{ sale.date|date('d / m / Y à H:i') }}</td>
+                <td class="info-value">{{ sale.date|date('d/m/Y à H:i') }}</td>
             </tr>
             <tr>
                 <td class="info-label">RÈGLEMENT :</td>
@@ -84,49 +86,43 @@
             {% for item in sale.saleItems %}
             <tr>
                 <td>
-                    <div class="font-black">{{ item.stockBatch.product.name }}</div>
+                    <div class="font-black">{{ item.stockBatch.product.name|default('Produit supprimé') }}</div>
                 </td>
                 <td class="text-center font-black">{{ item.quantity }}</td>
-                <td class="text-right">{{ item.unitSellingPrice|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right">{{ (item.unitSellingPrice|default(0))|number_format(0, '.', ' ') }} F</td>
                 <td class="text-right font-black">
-                    {{ (item.quantity * item.unitSellingPrice)|number_format(0, '.', ' ') }} F
+                    {{ (item.quantity * item.unitSellingPrice|default(0))|number_format(0, '.', ' ') }} F
                 </td>
             </tr>
             {% endfor %}
-            
-            {% if sale.saleItems|length < 8 %}
-                {% for i in range(sale.saleItems|length + 1, 8) %}
-                <tr>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                </tr>
-                {% endfor %}
-            {% endif %}
         </tbody>
     </table>
 
-    <div class="summary-banner">
-        <div class="summary-line text-right">
-            <div class="summary-label">TOTAL NET À PAYER</div>
-            <div class="summary-value">{{ sale.totalAmount|number_format(0, '.', ' ') }} F</div>
-        </div>
-        <div class="summary-line text-right">
-            <div class="summary-label">MONTANT REÇU</div>
-            <div class="summary-value">{{ sale.paidAmount|number_format(0, '.', ' ') }} F</div>
-        </div>
-        <div class="summary-line total-line text-right">
-            {% set balance = sale.totalAmount - sale.paidAmount %}
-            {% if balance > 0 %}
-                <div class="summary-label">RESTE À PAYER (DETTE)</div>
-                <div class="summary-value total-value">{{ balance|number_format(0, '.', ' ') }} F</div>
-            {% else %}
-                <div class="summary-label">MONNAIE RENDUE</div>
-                <div class="summary-value total-value">{{ (sale.paidAmount - sale.totalAmount)|number_format(0, '.', ' ') }} F</div>
-            {% endif %}
-        </div>
+    <div class="summary-container">
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">TOTAL NET À PAYER</td>
+                <td class="summary-value">{{ (sale.totalAmount|default(0))|number_format(0, '.', ' ') }} F</td>
+            </tr>
+            <tr>
+                <td class="summary-label">MONTANT REÇU</td>
+                <td class="summary-value">{{ (sale.paidAmount|default(0))|number_format(0, '.', ' ') }} F</td>
+            </tr>
+            <tr class="total-row">
+                {% set total = sale.totalAmount|default(0) %}
+                {% set paid = sale.paidAmount|default(0) %}
+                {% set balance = total - paid %}
+                {% if balance > 0 %}
+                    <td class="summary-label">RESTE À PAYER (DETTE)</td>
+                    <td class="summary-value total-value">{{ balance|number_format(0, '.', ' ') }} F</td>
+                {% else %}
+                    <td class="summary-label">MONNAIE RENDUE</td>
+                    <td class="summary-value total-value">{{ (paid - total)|number_format(0, '.', ' ') }} F</td>
+                {% endif %}
+            </tr>
+        </table>
     </div>
+    <div class="clear"></div>
 
     <div class="footer-text">
         Merci de votre confiance ! - Facture générée le {{ "now"|date('d/m/Y à H:i') }}.
