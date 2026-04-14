@@ -292,7 +292,7 @@ class PosController extends AbstractController
 
         return new \Symfony\Component\HttpFoundation\Response($pdfBinary, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="facture_' . ($sale->getReference() ?: $sale->getId()) . '.pdf"',
+            'Content-Disposition' => 'inline; filename="facture_' . $sale->getId() . '.pdf"',
         ]);
     }
 

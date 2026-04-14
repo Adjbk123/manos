@@ -12,6 +12,9 @@ use App\Repository\ProductCategoryRepository;
 use App\Repository\ProductRepository;
 use App\Repository\StockArrivalRepository;
 use App\Repository\SupplierRepository;
+use App\Repository\SaleZoneRepository;
+use App\Repository\ProductPriceRepository;
+use App\Entity\ProductPrice;
 use App\Service\ShopCashService;
 use App\Service\PdfService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,7 +39,7 @@ class InventoryController extends AbstractController
     }
 
     #[Route('/products', name: 'api_stock_products_create', methods: ['POST'])]
-    public function createProduct(Request $request, EntityManagerInterface $em, ProductCategoryRepository $categoryRepository): JsonResponse
+    public function createProduct(Request $request, EntityManagerInterface $em, ProductCategoryRepository $categoryRepository, SaleZoneRepository $zoneRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
@@ -83,13 +86,28 @@ class InventoryController extends AbstractController
             $this->recordPriceHistory($product, $sellingPrice, $em);
         }
 
+        // Gestion des prix par zone
+        if (isset($data['zonePrices']) && is_array($data['zonePrices'])) {
+            foreach ($data['zonePrices'] as $zoneId => $price) {
+                $zone = $zoneRepository->find($zoneId);
+                if ($zone) {
+                    $productPrice = new ProductPrice();
+                    $productPrice->setProduct($product);
+                    $productPrice->setSaleZone($zone);
+                    $productPrice->setPrice((string)$price);
+                    $em->persist($productPrice);
+                    $this->recordPriceHistory($product, (string)$price, $em, $zone);
+                }
+            }
+        }
+
         $em->flush();
 
         return $this->json($product, 201, [], ['groups' => 'stock:read']);
     }
 
     #[Route('/products/{id}', name: 'api_stock_products_update', methods: ['PUT'])]
-    public function updateProduct(int $id, Request $request, EntityManagerInterface $em, ProductRepository $productRepository, ProductCategoryRepository $categoryRepository): JsonResponse
+    public function updateProduct(int $id, Request $request, EntityManagerInterface $em, ProductRepository $productRepository, ProductCategoryRepository $categoryRepository, SaleZoneRepository $zoneRepository, ProductPriceRepository $productPriceRepository): JsonResponse
     {
         $product = $productRepository->find($id);
         if (!$product) {
@@ -123,20 +141,42 @@ class InventoryController extends AbstractController
             }
         }
 
+        // Gestion des prix par zone
+        if (isset($data['zonePrices']) && is_array($data['zonePrices'])) {
+            foreach ($data['zonePrices'] as $zoneId => $price) {
+                $zone = $zoneRepository->find($zoneId);
+                if ($zone) {
+                    $productPrice = $productPriceRepository->findOneBy(['product' => $product, 'saleZone' => $zone]);
+                    if (!$productPrice) {
+                        $productPrice = new ProductPrice();
+                        $productPrice->setProduct($product);
+                        $productPrice->setSaleZone($zone);
+                    }
+                    
+                    if ($productPrice->getPrice() !== (string)$price) {
+                        $productPrice->setPrice((string)$price);
+                        $em->persist($productPrice);
+                        $this->recordPriceHistory($product, (string)$price, $em, $zone);
+                    }
+                }
+            }
+        }
+
         $em->persist($product);
         $em->flush();
 
         return $this->json($product, 200, [], ['groups' => 'stock:read']);
     }
 
-    private function recordPriceHistory(Product $product, string $price, EntityManagerInterface $em): void
+    private function recordPriceHistory(Product $product, string $price, EntityManagerInterface $em, ?SaleZone $zone = null): void
     {
         $user = $this->getUser();
 
         $priceHistory = new PriceHistory();
         $priceHistory->setProduct($product);
         $priceHistory->setPrice($price);
-        $priceHistory->setUser($user);
+        $priceHistory->setUser($user instanceof User ? $user : null);
+        $priceHistory->setSaleZone($zone);
         $priceHistory->setEffectiveFrom(new \DateTimeImmutable());
 
         $em->persist($priceHistory);
