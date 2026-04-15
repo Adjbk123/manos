@@ -226,12 +226,15 @@ class PosController extends AbstractController
             $em->persist($sale);
             $em->flush();
 
-            // Record Shop Cash Movement if CASH
-            if ($sale->getPaymentMethod() === 'CASH' && $sale->getPaidAmount() > 0) {
+            // Record Shop Cash Movement if payment received (CASH or MOMO)
+            if (in_array($sale->getPaymentMethod(), ['CASH', 'MOMO']) && $sale->getPaidAmount() > 0) {
+                $label = "Vente #" . $sale->getId()
+                    . ($sale->getClientName() ? " - " . $sale->getClientName() : "")
+                    . " (" . $sale->getPaymentMethod() . ")";
                 $cashService->addMovement(
                     'IN',
                     (float)$sale->getPaidAmount(),
-                    "Vente #" . $sale->getId() . ($sale->getClientName() ? " - " . $sale->getClientName() : ""),
+                    $label,
                     'SALE',
                     $sale->getId(),
                     $user
@@ -380,12 +383,12 @@ class PosController extends AbstractController
         $client->setCurrentDebt($client->getCurrentDebt() - $amount);
         $em->persist($client);
 
-        // Record Shop Cash Movement if CASH
-        if ($paymentMethod === 'CASH') {
+        // Record Shop Cash Movement if CASH or MOMO (payment received)
+        if (in_array($paymentMethod, ['CASH', 'MOMO'])) {
             $cashService->addMovement(
                 'IN',
                 (float)$amount,
-                "Remboursement dette client : " . $client->getName(),
+                "Remb. dette : " . $client->getName() . " (" . $paymentMethod . ")",
                 'DEBT_REPAYMENT',
                 null,
                 $user
