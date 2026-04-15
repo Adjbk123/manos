@@ -45,18 +45,6 @@ class PdfService
             }
         }
 
-        // Inject Century Gothic fonts as base64
-        if (!isset($parameters['font_regular'])) {
-            $fontDir = $this->params->get('kernel.project_dir') . '/public/fonts/century-gothic';
-            $regularPath = $fontDir . '/centurygothic.ttf';
-            $boldPath    = $fontDir . '/centurygothic_bold.ttf';
-            if (file_exists($regularPath)) {
-                $parameters['font_regular'] = 'data:font/truetype;base64,' . base64_encode(file_get_contents($regularPath));
-            }
-            if (file_exists($boldPath)) {
-                $parameters['font_bold'] = 'data:font/truetype;base64,' . base64_encode(file_get_contents($boldPath));
-            }
-        }
 
         $html = $this->twig->render($templatePath, $parameters);
 

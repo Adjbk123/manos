@@ -3,27 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        {% if font_regular is defined %}
         @font-face {
-            font-family: 'CenturyGothic';
-            src: url('{{ font_regular }}') format('truetype');
-            font-weight: normal;
-            font-style: normal;
+            font-family: 'Century Gothic';
+            src: url('{{ absolute_url(asset('fonts/century-gothic/centurygothic.ttf')) }}') format('truetype');
+            font-weight: 400;
         }
-        {% endif %}
-        {% if font_bold is defined %}
         @font-face {
-            font-family: 'CenturyGothic';
-            src: url('{{ font_bold }}') format('truetype');
-            font-weight: bold;
-            font-style: normal;
+            font-family: 'Century Gothic';
+            src: url('{{ absolute_url(asset('fonts/century-gothic/centurygothic_bold.ttf')) }}') format('truetype');
+            font-weight: 700;
         }
-        {% endif %}
 
         @page { margin: 28px 32px; }
         * { box-sizing: border-box; }
         body {
-            font-family: 'CenturyGothic', 'Helvetica', Arial, sans-serif;
+            font-family: 'Century Gothic', 'Helvetica', Arial, sans-serif;
             color: #1a1a1a;
             font-size: 9.5pt;
             line-height: 1.3;

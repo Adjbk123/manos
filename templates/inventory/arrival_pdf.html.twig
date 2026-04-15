@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        {% if font_regular is defined %}
-        @font-face { font-family: 'CenturyGothic'; src: url('{{ font_regular }}') format('truetype'); font-weight: normal; }
-        {% endif %}
-        {% if font_bold is defined %}
-        @font-face { font-family: 'CenturyGothic'; src: url('{{ font_bold }}') format('truetype'); font-weight: bold; }
-        {% endif %}
+        @font-face {
+            font-family: 'Century Gothic';
+            src: url('{{ absolute_url(asset('fonts/century-gothic/centurygothic.ttf')) }}') format('truetype');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'Century Gothic';
+            src: url('{{ absolute_url(asset('fonts/century-gothic/centurygothic_bold.ttf')) }}') format('truetype');
+            font-weight: 700;
+        }
         @page { margin: 30px; }
-        body { font-family: 'CenturyGothic', Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
+        body { font-family: 'Century Gothic', Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
         
         .page-header { width: 100%; margin-bottom: 20px; position: relative; }
         .main-title { font-size: 32pt; font-weight: 900; color: #000; letter-spacing: -1px; margin: 0; padding: 0; line-height: 1; text-transform: uppercase; }
