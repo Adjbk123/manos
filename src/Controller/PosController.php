@@ -260,6 +260,44 @@ class PosController extends AbstractController
         return $this->json($sales, 200, [], ['groups' => 'sale:read']);
     }
 
+    #[Route('/sales/print', name: 'api_pos_sales_print', methods: ['GET'])]
+    public function printSalesByDate(Request $request, SaleRepository $saleRepository, \App\Service\PdfService $pdfService): \Symfony\Component\HttpFoundation\Response
+    {
+        $dateStr = $request->query->get('date', date('Y-m-d'));
+        $date = \DateTime::createFromFormat('Y-m-d', $dateStr);
+        if (!$date) {
+            $date = new \DateTime();
+        }
+
+        $start = (clone $date)->setTime(0, 0, 0);
+        $end   = (clone $date)->setTime(23, 59, 59);
+
+        $sales = $saleRepository->createQueryBuilder('s')
+            ->where('s.date >= :start AND s.date <= :end')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->orderBy('s.date', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $totalAmount  = array_sum(array_map(fn($s) => $s->getTotalAmount(), $sales));
+        $totalPaid    = array_sum(array_map(fn($s) => $s->getPaidAmount(), $sales));
+        $totalPending = $totalAmount - $totalPaid;
+
+        $pdfBinary = $pdfService->generatePdf('pos/sales_day_pdf.html.twig', [
+            'sales'        => $sales,
+            'date'         => $date,
+            'totalAmount'  => $totalAmount,
+            'totalPaid'    => $totalPaid,
+            'totalPending' => $totalPending,
+        ]);
+
+        return new \Symfony\Component\HttpFoundation\Response($pdfBinary, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="ventes_' . $dateStr . '.pdf"',
+        ]);
+    }
+
     #[Route('/sales/{id}', name: 'api_pos_sale_detail', methods: ['GET'])]
     public function getSale(int $id, SaleRepository $saleRepository): JsonResponse
     {

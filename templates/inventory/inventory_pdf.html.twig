@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <style>
+        {% if font_regular is defined %}
+        @font-face { font-family: 'CenturyGothic'; src: url('{{ font_regular }}') format('truetype'); font-weight: normal; }
+        {% endif %}
+        {% if font_bold is defined %}
+        @font-face { font-family: 'CenturyGothic'; src: url('{{ font_bold }}') format('truetype'); font-weight: bold; }
+        {% endif %}
         @page { margin: 30px; }
-        body { font-family: 'Helvetica', Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
+        body { font-family: 'CenturyGothic', Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.2; margin: 0; padding: 0; }
         
         /* Top Header Section */
         .page-header { width: 100%; margin-bottom: 20px; }

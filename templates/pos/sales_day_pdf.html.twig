@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        {% if font_regular is defined %}
+        @font-face {
+            font-family: 'CenturyGothic';
+            src: url('{{ font_regular }}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        {% endif %}
+        {% if font_bold is defined %}
+        @font-face {
+            font-family: 'CenturyGothic';
+            src: url('{{ font_bold }}') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+        {% endif %}
+
+        @page { margin: 28px 32px; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'CenturyGothic', 'Helvetica', Arial, sans-serif;
+            color: #1a1a1a;
+            font-size: 9.5pt;
+            line-height: 1.3;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ─── HEADER ─────────────────────────────── */
+        .header { width: 100%; margin-bottom: 18px; position: relative; min-height: 80px; }
+        .logo-box { position: absolute; top: 0; right: 0; width: 130px; }
+        .logo-box img { width: 100%; height: auto; }
+        .main-title {
+            font-size: 26pt;
+            font-weight: bold;
+            color: #1e293b;
+            letter-spacing: -0.5px;
+            margin: 0 0 2px 0;
+            text-transform: uppercase;
+        }
+        .sub-title {
+            font-size: 11pt;
+            color: #64748b;
+            margin: 0 0 14px 0;
+            font-weight: normal;
+        }
+
+        .info-table { border-collapse: collapse; width: 420px; }
+        .info-table td { padding: 5px 10px; font-size: 9pt; border: 1px solid #cbd5e1; background: #f8fafc; }
+        .info-label { font-weight: bold; text-transform: uppercase; color: #475569; width: 130px; font-size: 8pt; letter-spacing: 0.4px; }
+        .info-value { font-weight: bold; color: #0f172a; }
+
+        /* ─── KPI CARDS ──────────────────────────── */
+        .kpi-section { margin: 20px 0 20px 0; width: 100%; }
+        .kpi-row { width: 100%; border-collapse: collapse; }
+        .kpi-cell { width: 25%; padding: 0 6px 0 0; vertical-align: top; }
+        .kpi-cell:last-child { padding-right: 0; }
+        .kpi-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px 14px;
+            background: #fff;
+        }
+        .kpi-card.green  { border-left: 4px solid #22c55e; }
+        .kpi-card.blue   { border-left: 4px solid #3b82f6; }
+        .kpi-card.orange { border-left: 4px solid #f97316; }
+        .kpi-card.slate  { border-left: 4px solid #64748b; }
+        .kpi-label { font-size: 7.5pt; text-transform: uppercase; color: #64748b; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .kpi-value { font-size: 14pt; font-weight: bold; color: #0f172a; }
+        .kpi-sub   { font-size: 8pt; color: #94a3b8; margin-top: 2px; }
+
+        /* ─── TABLE ──────────────────────────────── */
+        .main-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        .main-table thead tr { background-color: #1e293b; }
+        .main-table th {
+            color: #fff;
+            padding: 9px 10px;
+            text-align: left;
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: none;
+        }
+        .main-table td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; font-size: 9pt; vertical-align: middle; }
+        .main-table tr:last-child td { border-bottom: none; }
+        .main-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+        .text-right  { text-align: right; }
+        .text-center { text-align: center; }
+        .fw-bold     { font-weight: bold; }
+
+        /* badges */
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-size: 7.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-cash   { background: #dbeafe; color: #1d4ed8; }
+        .badge-momo   { background: #fef9c3; color: #92400e; }
+        .badge-credit { background: #fee2e2; color: #991b1b; }
+        .badge-paid   { background: #dcfce7; color: #166534; }
+
+        .text-green  { color: #16a34a; }
+        .text-red    { color: #dc2626; }
+        .text-muted  { color: #94a3b8; }
+
+        /* ─── FOOTER ─────────────────────────────── */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo-box">
+            {% if logo_path %}<img src="{{ logo_path }}">{% endif %}
+        </div>
+        <p class="main-title">Journal des Ventes</p>
+        <p class="sub-title">Journée du {{ date|date('d MMMM Y') }}</p>
+        <table class="info-table">
+            <tr>
+                <td class="info-label">Boutique</td>
+                <td class="info-value">MANOS PHONE – CENTRALE</td>
+            </tr>
+            <tr>
+                <td class="info-label">Période</td>
+                <td class="info-value">{{ date|date('d/m/Y') }} &nbsp; 00:00 → 23:59</td>
+            </tr>
+            <tr>
+                <td class="info-label">Produit le</td>
+                <td class="info-value">{{ "now"|date('d/m/Y à H:i') }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {# ─── KPI CARDS ─────────────────────────────────────────── #}
+    {% set nbCredit = 0 %}
+    {% for s in sales %}{% if s.paidAmount < s.totalAmount %}{% set nbCredit = nbCredit + 1 %}{% endif %}{% endfor %}
+    {% set avgBasket = sales|length > 0 ? (totalAmount / sales|length) : 0 %}
+
+    <div class="kpi-section">
+        <table class="kpi-row">
+            <tr>
+                <td class="kpi-cell">
+                    <div class="kpi-card green">
+                        <div class="kpi-label">Total journée</div>
+                        <div class="kpi-value">{{ totalAmount|number_format(0, '.', ' ') }} F</div>
+                        <div class="kpi-sub">{{ sales|length }} vente(s)</div>
+                    </div>
+                </td>
+                <td class="kpi-cell">
+                    <div class="kpi-card blue">
+                        <div class="kpi-label">Encaissé</div>
+                        <div class="kpi-value">{{ totalPaid|number_format(0, '.', ' ') }} F</div>
+                        <div class="kpi-sub">Cash + MoMo</div>
+                    </div>
+                </td>
+                <td class="kpi-cell">
+                    <div class="kpi-card orange">
+                        <div class="kpi-label">En attente</div>
+                        <div class="kpi-value">{{ totalPending|number_format(0, '.', ' ') }} F</div>
+                        <div class="kpi-sub">{{ nbCredit }} vente(s) à crédit</div>
+                    </div>
+                </td>
+                <td class="kpi-cell">
+                    <div class="kpi-card slate">
+                        <div class="kpi-label">Panier moyen</div>
+                        <div class="kpi-value">{{ avgBasket|number_format(0, '.', ' ') }} F</div>
+                        <div class="kpi-sub">par transaction</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    {# ─── TABLE ──────────────────────────────────────────────── #}
+    {% if sales is empty %}
+        <p style="text-align:center; color:#94a3b8; margin-top:40px; font-size:11pt;">
+            Aucune vente enregistrée pour cette journée.
+        </p>
+    {% else %}
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th style="width:6%;">#</th>
+                <th style="width:10%;">Heure</th>
+                <th style="width:26%;">Client</th>
+                <th style="width:13%;" class="text-center">Paiement</th>
+                <th style="width:13%;" class="text-center">Statut</th>
+                <th style="width:16%;" class="text-right">Montant</th>
+                <th style="width:16%;" class="text-right">Encaissé</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sale in sales %}
+            {% set isCredit = sale.paidAmount < sale.totalAmount %}
+            <tr>
+                <td class="fw-bold text-muted">{{ sale.id }}</td>
+                <td class="fw-bold">{{ sale.date|date('H:i') }}</td>
+                <td>
+                    <div class="fw-bold">{{ sale.clientName ?? (sale.stockClient ? sale.stockClient.name : 'Client comptant') }}</div>
+                    {% if sale.saleZone %}
+                        <div class="text-muted" style="font-size:7.5pt;">{{ sale.saleZone.name }}</div>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if sale.paymentMethod == 'CASH' %}
+                        <span class="badge badge-cash">Cash</span>
+                    {% elseif sale.paymentMethod == 'MOMO' %}
+                        <span class="badge badge-momo">MoMo</span>
+                    {% else %}
+                        <span class="badge badge-credit">Crédit</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if isCredit %}
+                        <span class="badge badge-credit">Partiel</span>
+                    {% else %}
+                        <span class="badge badge-paid">Payé</span>
+                    {% endif %}
+                </td>
+                <td class="text-right fw-bold">{{ sale.totalAmount|number_format(0, '.', ' ') }} F</td>
+                <td class="text-right fw-bold {{ isCredit ? 'text-red' : 'text-green' }}">
+                    {{ sale.paidAmount|number_format(0, '.', ' ') }} F
+                    {% if isCredit %}
+                        <div style="font-size:7.5pt; color:#f97316;">
+                            –{{ (sale.totalAmount - sale.paidAmount)|number_format(0, '.', ' ') }} F
+                        </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <div class="footer">
+        Document confidentiel · MANOS PHONE · Généré le {{ "now"|date('d/m/Y à H:i') }}
+    </div>
+
+</body>
+</html>

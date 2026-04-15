@@ -39,10 +39,22 @@ class PdfService
         if (!isset($parameters['logo_path'])) {
             $logoPath = $this->params->get('kernel.project_dir') . '/public/logo-manos-phone.png';
             if (file_exists($logoPath)) {
-                // Convert to base64 to avoid path/permission issues with DomPDF
                 $type = pathinfo($logoPath, PATHINFO_EXTENSION);
                 $data = file_get_contents($logoPath);
                 $parameters['logo_path'] = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        // Inject Century Gothic fonts as base64
+        if (!isset($parameters['font_regular'])) {
+            $fontDir = $this->params->get('kernel.project_dir') . '/public/fonts/century-gothic';
+            $regularPath = $fontDir . '/centurygothic.ttf';
+            $boldPath    = $fontDir . '/centurygothic_bold.ttf';
+            if (file_exists($regularPath)) {
+                $parameters['font_regular'] = 'data:font/truetype;base64,' . base64_encode(file_get_contents($regularPath));
+            }
+            if (file_exists($boldPath)) {
+                $parameters['font_bold'] = 'data:font/truetype;base64,' . base64_encode(file_get_contents($boldPath));
             }
         }
 
