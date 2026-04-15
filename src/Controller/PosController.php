@@ -263,14 +263,13 @@ class PosController extends AbstractController
     #[Route('/sales/print', name: 'api_pos_sales_print', methods: ['GET'])]
     public function printSalesByDate(Request $request, SaleRepository $saleRepository, \App\Service\PdfService $pdfService): \Symfony\Component\HttpFoundation\Response
     {
-        $dateStr = $request->query->get('date', date('Y-m-d'));
-        $date = \DateTime::createFromFormat('Y-m-d', $dateStr);
-        if (!$date) {
-            $date = new \DateTime();
-        }
+        $startStr = $request->query->get('start', date('Y-m-d'));
+        $endStr   = $request->query->get('end', $startStr);
 
-        $start = (clone $date)->setTime(0, 0, 0);
-        $end   = (clone $date)->setTime(23, 59, 59);
+        $start = \DateTime::createFromFormat('Y-m-d', $startStr) ?: new \DateTime();
+        $end   = \DateTime::createFromFormat('Y-m-d', $endStr)   ?: new \DateTime();
+        $start->setTime(0, 0, 0);
+        $end->setTime(23, 59, 59);
 
         $sales = $saleRepository->createQueryBuilder('s')
             ->where('s.date >= :start AND s.date <= :end')
@@ -284,17 +283,63 @@ class PosController extends AbstractController
         $totalPaid    = array_sum(array_map(fn($s) => $s->getPaidAmount(), $sales));
         $totalPending = $totalAmount - $totalPaid;
 
+        // Regrouper par date
+        $byDate = [];
+        // Regrouper par produit
+        $byProduct = [];
+        foreach ($sales as $s) {
+            $key = $s->getDate()->format('Y-m-d');
+            if (!isset($byDate[$key])) {
+                $byDate[$key] = ['date' => $s->getDate(), 'count' => 0, 'amount' => 0, 'paid' => 0];
+            }
+            $byDate[$key]['count']++;
+            $byDate[$key]['amount'] += $s->getTotalAmount();
+            $byDate[$key]['paid']   += $s->getPaidAmount();
+
+            foreach ($s->getSaleItems() as $item) {
+                $product = $item->getStockBatch()?->getProduct();
+                if (!$product) continue;
+                $pid = $product->getId();
+                if (!isset($byProduct[$pid])) {
+                    $byProduct[$pid] = [
+                        'name'     => $product->getName(),
+                        'category' => $product->getCategory()?->getName() ?? '—',
+                        'qty'      => 0,
+                        'revenue'  => 0.0,
+                        'profit'   => 0.0,
+                        'unitPrice'=> 0.0,
+                        'count'    => 0,
+                    ];
+                }
+                $qty      = $item->getQuantity();
+                $unitPrice = (float) $item->getUnitSellingPrice();
+                $profit    = (float) $item->getProfit();
+                $byProduct[$pid]['qty']      += $qty;
+                $byProduct[$pid]['revenue']  += $qty * $unitPrice;
+                $byProduct[$pid]['profit']   += $profit;
+                $byProduct[$pid]['unitPrice'] = $unitPrice; // dernier prix connu
+                $byProduct[$pid]['count']++;
+            }
+        }
+
+        // Trier les produits par revenu décroissant
+        uasort($byProduct, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+
         $pdfBinary = $pdfService->generatePdf('pos/sales_day_pdf.html.twig', [
             'sales'        => $sales,
-            'date'         => $date,
+            'byDate'       => $byDate,
+            'byProduct'    => $byProduct,
+            'startDate'    => $start,
+            'endDate'      => $end,
             'totalAmount'  => $totalAmount,
             'totalPaid'    => $totalPaid,
             'totalPending' => $totalPending,
         ]);
 
+        $filename = $startStr === $endStr ? "ventes_$startStr.pdf" : "ventes_{$startStr}_{$endStr}.pdf";
         return new \Symfony\Component\HttpFoundation\Response($pdfBinary, 200, [
             'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="ventes_' . $dateStr . '.pdf"',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
         ]);
     }
 
@@ -335,6 +380,57 @@ class PosController extends AbstractController
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="facture_' . $sale->getId() . '.pdf"',
         ]);
+    }
+
+    #[Route('/sales/{id}/cancel', name: 'api_pos_sale_cancel', methods: ['POST'])]
+    public function cancelSale(
+        int $id,
+        SaleRepository $saleRepository,
+        EntityManagerInterface $em,
+        ShopCashMovementRepository $shopCashMovementRepository
+    ): JsonResponse {
+        $sale = $saleRepository->find($id);
+        if (!$sale) {
+            return $this->json(['error' => 'Vente introuvable'], 404);
+        }
+
+        // Vérifier que la vente est du jour même
+        $today = new \DateTime();
+        $saleDay = $sale->getDate()->format('Y-m-d');
+        if ($saleDay !== $today->format('Y-m-d')) {
+            return $this->json(['error' => 'Impossible d\'annuler une vente d\'un autre jour.'], 403);
+        }
+
+        // Restaurer le stock — on itère sur une copie du tableau pour éviter
+        // les problèmes de modification de collection Doctrine pendant le foreach
+        foreach ($sale->getSaleItems()->toArray() as $item) {
+            $batch = $item->getStockBatch();
+            if ($batch) {
+                $batch->setQuantityRemaining($batch->getQuantityRemaining() + $item->getQuantity());
+                $product = $batch->getProduct();
+                if ($product) {
+                    $product->setStockQuantity($product->getStockQuantity() + $item->getQuantity());
+                }
+            }
+            // NE PAS appeler $em->remove($item) ici :
+            // cascade=['remove'] + orphanRemoval=true sur Sale::$saleItems
+            // supprime automatiquement les items quand $em->remove($sale) est appelé
+        }
+
+        // Supprimer le mouvement de caisse associé (CASH / MOMO)
+        $movement = $shopCashMovementRepository->findOneBy([
+            'source'   => 'SALE',
+            'sourceId' => $sale->getId(),
+        ]);
+        if ($movement) {
+            $em->remove($movement);
+        }
+
+        // La suppression de $sale entraîne en cascade la suppression des SaleItems
+        $em->remove($sale);
+        $em->flush();
+
+        return $this->json(['success' => true, 'message' => 'Vente annulée avec succès.']);
     }
 
     #[Route('/clients/{id}/pay', name: 'api_pos_clients_pay', methods: ['POST'])]
